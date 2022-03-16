@@ -41,6 +41,9 @@ class WasteBin():
     def make_filepaths(ids, base, form):
         """Create dictionary of filepaths
 
+        If ids are isotopic ratios separated by a /,
+        the / is replaced by a -.
+
         Parameters
         ----------
         ids : list
@@ -60,7 +63,7 @@ class WasteBin():
             as keys.
         """
         p = os.path.join(base, form)
-        filepaths = {i: p.format(i) for i in ids}
+        filepaths = {i: p.format(i.replace('/', '-')) for i in ids}
         return filepaths
 
     def load_models(self, ids):
