@@ -12,9 +12,16 @@ bayesian inference with pymc.
 @author jung-benjamin
 """
 
+import json
 import numpy as np
 import theano.tensor as tt
 
+
+OLDKEYS = ['Params', 'LAMBDA', 'alpha_', 'x_train', 'y_train',
+           'y_trafo', 'x_trafo',]
+KEYS = ['parameters', 'lambda_inv', 'alpha', 'xtrain', 'ytrain',
+        'ytrafo', 'xtrafo',]
+KEYMAP = dict(zip(OLDKEYS, KEYS))
 
 class ASQEKernelPredictor():
     """Posterior predictive of an ASQE kernel
@@ -34,8 +41,44 @@ class ASQEKernelPredictor():
         self.ytrain = tt.cast(ytrain, 'float64')
         self.lambda_inv = tt.cast(lambda_inv, 'float64')
         self.alpha = tt.cast(alpha, 'float64')
-        self.xtrafo = tt.cast(xtrafo, 'float64')
-        self.ytrafo = tt.cast(ytrafo, 'float64')
+        if isinstance(xtrafo, tuple) or isinstance(xtrafo, list):
+            self.xtrafo = tt.cast(xtrafo[1], 'float64')
+        else:
+            self.xtrafo = tt.cast(xtrafo, 'float64')
+        if isinstance(ytrafo, tuple) or isinstance(ytrafo, list):
+            self.ytrafo = tt.cast(ytrafo[1], 'float64')
+        else:
+            self.ytrafo = tt.cast(ytrafo, 'float64')
+
+    @classmethod
+    def from_file(cls, filepath):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            Path to the file containing model data.
+        """
+        if str(filepath).endswith('.json'):
+            with open(filepath, 'r') as f:
+                d = json.load(f)
+        elif str(filepath).endswith('.npy'):
+            d = np.load(filepath, allow_pickle=True)
+        else:
+            msg = 'File format is not supported by the model.'
+            print(msg)
+        arg_dict = {}
+        for n, it in d.items():
+            if n in OLDKEYS:
+                arg_dict[KEYMAP[n]] = it
+            elif n in KEYS:
+                arg_dict[n] = it
+            else:
+                pass
+        return cls(arg_dict['parameters'], arg_dict['xtrain'],
+                   arg_dict['ytrain'], arg_dict['lambda_inv'],
+                   arg_dict['alpha'], arg_dict['xtrafo'], arg_dict['ytrafo'])
+
 
     def transform_x(self, x):
         """Transform the x data
