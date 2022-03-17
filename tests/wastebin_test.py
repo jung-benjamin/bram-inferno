@@ -44,7 +44,8 @@ def test_load_model(tmp_path):
     """Test for load_model method"""
     p = tmp_path / 't.json'
     store_model(p)
-    m = wastebin.WasteBin(kernels.ASQEKernelPredictor, {'t': p})
+    m = wastebin.WasteBin(kernels.ASQEKernelPredictor, {'t': p},
+                          labels=None, evidence=None)
     m.load_models(['t'])
     assert True
 
