@@ -98,26 +98,26 @@ class ASQEKernelPredictor():
         """Calculate the posterior predictive for x"""
         xtt = self.transform_x(tt.cast(x, 'float64'))
         distance = self.transform_x(self.xtrain) - xtt
-        distance_sq = tt.dot(tt.dot(distance, self.lambda_inv), distance.T).diagonal()
+        distance_sq = tt.dot(tt.dot(distance, self.lambda_inv**2), distance.T).diagonal()
         ktrans = self.constant**2 * tt.exp(-distance_sq / 2)
         noise_diag = tt.cast(np.ones(self.xtrain.shape.eval()[0]), 'float64') * self.noise **2
         ktrans += noise_diag
         y = self.untransform_y(tt.dot(ktrans, self.alpha))
         return y
-    
-    
+
+
 class PredictorSum2():
     """Sum of two predictor kernels
-    
+
     A composite class of two kernel predictor classes that
     calculates the sum of the two composites.
     """
-    
+
     def __init__(self, k1, k2):
         """Set the two kernel predictor instances"""
         self.k1 = k1
         self.k2 = k2
-        
+
     @classmethod
     def from_file(cls, filepath1, modeltype1, filepath2, modeltype2):
         """Load the model from a file
@@ -129,7 +129,7 @@ class PredictorSum2():
         modeltype1, modeltype2
             Model types intended for each kernel. Both must have
             a `from_file` classmethod.
-        
+
         Returns:
         k : PredictorSum2 object
             Instance of the class.
@@ -138,7 +138,7 @@ class PredictorSum2():
         k2 = modeltype2.from_file(filepath2)
         k = cls(k1, k2)
         return k
-    
+
     def predict(self, a1, x1, a2, x2):
         """Calculate the posterior predictive of the sum"""
         return a1 * self.k1.predict(x1) + a2 * self.k2.predict(x2)
