@@ -41,11 +41,11 @@ class ASQEKernelPredictor():
         self.ytrain = tt.cast(ytrain, 'float64')
         self.lambda_inv = tt.cast(lambda_inv, 'float64')
         self.alpha = tt.cast(alpha, 'float64')
-        if isinstance(xtrafo, tuple) or isinstance(xtrafo, list):
+        if isinstance(xtrafo[0], str):
             self.xtrafo = tt.cast(xtrafo[1], 'float64')
         else:
             self.xtrafo = tt.cast(xtrafo, 'float64')
-        if isinstance(ytrafo, tuple) or isinstance(ytrafo, list):
+        if isinstance(ytrafo[0], str):
             self.ytrafo = tt.cast(ytrafo[1], 'float64')
         else:
             self.ytrafo = tt.cast(ytrafo, 'float64')
