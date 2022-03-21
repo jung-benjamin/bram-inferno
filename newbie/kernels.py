@@ -14,6 +14,7 @@ bayesian inference with pymc.
 
 import json
 import numpy as np
+import theano
 import theano.tensor as tt
 
 
@@ -104,6 +105,33 @@ class ASQEKernelPredictor():
         ktrans += noise_diag
         y = self.untransform_y(tt.dot(ktrans, self.alpha))
         return y
+
+    def predict_many(self, x, eval=False):
+        """Calculate the posterior predictive for a vector x
+
+        Uses the theano.scan method for faster computation of
+        the loop.
+
+        Parameters
+        ----------
+        x : list of float
+            Values for which the posterior predictive is to be
+            evaluated.
+        eval : bool, optional (default is False)
+            If True, the eval() method of the theano object is
+            called before returning the predictions.
+            This significantly increases the runtime.
+
+        Returns
+        -------
+        posterior
+            Posterior predictive for each point in x.
+        """
+        xtt = tt.cast(x, 'float64')
+        posterior, updates = theano.scan(self.predict, xtt)
+        if eval:
+            return posterior.eval()
+        return posterior
 
 
 class PredictorSum2():

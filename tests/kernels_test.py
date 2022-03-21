@@ -54,6 +54,13 @@ def test_asqe_predict(tmp_path):
     k.predict([700, 5000])
     assert True
 
+def test_asqe_predict_many(tmp_path):
+    p = tmp_path / 't.json'
+    store_model(p)
+    k = kernels.ASQEKernelPredictor.from_file(p)
+    k.predict_many([[700, 5000], [500, 1000], [600, 3000]])
+    assert True
+
 def test_predict_sum2(tmp_path):
     """Test for the PredictSum2 class"""
     p1 = tmp_path / 't1.json'
