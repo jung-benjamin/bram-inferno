@@ -14,6 +14,8 @@ import pymc3 as pm
 
 from itertools import chain
 
+from . import kernels
+
 
 class WasteBin():
     """Bayesian inference with nuclear waste
@@ -201,27 +203,71 @@ class WasteBinMixture(WasteBin):
     several GPR models are combined to predict one ratio.
     """
 
-    def load_models(self, ids, submodel_type):
-        """Load the surrogate models from files
+    def __init__(self, model_types, filepaths, labels, evidence):
+        """Set model type and filepaths for loading models
+
+        Parameters
+        ----------
+        model_type : dict
+            Dictionary associating each batch component
+            of the mixture with a surrogate model class from
+            the kernels module.
+        filepaths : dict
+            Dictionary of filepath dictionaries. Associates
+            each batch component of the miture with a set of
+            filepaths from which the trained models of the
+            isotopes can be loaded.
+        labels : dict
+            Dictionary associating each batch component of
+            the mixture with a list of parameter names.
+        evidence : dict-like
+            Isotopic evidence, from which the parameters are
+            to be inferred. Keys are identifiers of isotope
+            or ratio.
+        """
+        ## Verify that each dict has the same keys
+        assert set(model_types.keys()) == set(filepaths.keys())
+        assert set(filepaths.keys()) == set(labels.keys())
+        self.batches = list(model_types.keys())
+        self.model_types = model_types
+        self.filepaths = filepaths
+        self.labels = labels
+        self.evidence = evidence
+        self.models = {}
+
+    def load_models(self, ids, combination='PredictorSum2'):
+        """Load the surrogate models of the isotopes
+
+        Takes a list of isotope identifiers and creates a
+        composite surrogate model for the isotope value of
+        the mixture from the surrogate models of each batch.
 
         Parameters
         ----------
         ids : list
             String identifiers of the isotopes or isotopic
             ratios.
-        submodel_type
-            Type of kernel to be used for the composite
-            kernel.
+        combination : str, optional (default is PredictorSum2)
+            Specifies the class that is used to combine the
+            surrogate models.
         """
+        m = getattr(kernels, combination)
         for i in ids:
-            self.models[i] = self.model_type.from_file(self.filepaths[i],
-                                                       submodel_type,
-                                                       self.filepaths[i],
-                                                       submodel_type,
-                                                       )
+            args = list(chain(*[
+                [self.filepaths[j][i], self.model_types[j]] for j in self.batches
+            ]))
+            self.models[i] = m.from_file(*args)
 
-    def inference(self, ids, submodel_type, limits, uncertainty=0.1, const=None,
-                  plot=True, load=None, **kwargs):
+    def _make_priors(self, p, limits, fallback):
+        """Turn parameter limits into prior distribution"""
+        for param in p:
+            if param in limits:
+                yield pm.Uniform(param, **limits[param])
+            else:
+                yield fallpack[param]
+
+    def inference(self, ids, limits, combination='PredictorSum2',
+                  uncertainty=0.1, const=None, plot=True, load=None, **kwargs):
         """Run bayesian inference with pymc uniform priors
 
         Creates the Model context manager of pymc and runs bayesian
@@ -243,6 +289,9 @@ class WasteBinMixture(WasteBin):
             reconstructed. Each entry is a dict with keys 'lower'
             and 'upper', specifying the lower and upper limits of
             the uniform prior distribution of the parameter.
+        combination : str, optional (default is PredictorSum2)
+            Specify the class to be used for combining the surrogate
+            models of each batch into a mixture.
         uncertainty : float, optional (default is 0.1)
             Relative uncertainty assumed for the evidence.
         const : dict of theano floats, optional (default is None)
@@ -273,16 +322,21 @@ class WasteBinMixture(WasteBin):
             iso_ids = list(set(list(
                 chain(*list(map(lambda x: x.split('/'), ids)))
             )))
-            self.load_models(iso_ids, submodel_type)
+            self.load_models(iso_ids, combination)
 
-            labels = self.labels
+            labels = list(chain(*[d for i, d in self.labels.items()]))
             ## Create priors
             priors = []
-            for l in labels:
-                if l in limits:
-                    priors.append(pm.Uniform(l, **limits[l]))
-                else:
-                    priors.append(const[l])
+            # for l in labels:
+            #     if l in limits:
+            #         priors.append(pm.Uniform(l, **limits[l]))
+            #     else:
+            #         priors.append(const[l])
+
+            for b, l in self.labels.items():
+                a, p = l[0], l[1:]
+                priors.extend(list(self._make_priors([a], limits, const)))
+                priors.extend(list(list(self._make_priors(p, limits, const))))
 
             evidence = [self.evidence[i] for i in ids]
             sigma = [uncertainty * e for e in evidence]
