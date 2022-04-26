@@ -52,7 +52,7 @@ class WasteBin():
         self.models = {}
 
     @staticmethod
-    def make_filepaths(ids, base, form):
+    def make_filepaths(ids, base, form, join='-'):
         """Create dictionary of filepaths
 
         If ids are isotopic ratios separated by a /,
@@ -69,6 +69,9 @@ class WasteBin():
         form : str
             String for formatting the filename.
             E.g.: 'kernel{}.json'
+        join : str, optional (default is "-")
+            Character with which isotopes are separated in
+            the names of the kernel files.
 
         Returns
         -------
@@ -77,7 +80,7 @@ class WasteBin():
             as keys.
         """
         p = os.path.join(base, form)
-        filepaths = {i: p.format(i.replace('/', '-')) for i in ids}
+        filepaths = {i: p.format(i.replace('/', join)) for i in ids}
         return filepaths
 
     def load_models(self, ids):
