@@ -11,6 +11,7 @@ operating histories from nuclear waste compositions.
 import os
 import numpy as np
 import pymc3 as pm
+import theano.tensor as tt
 
 from itertools import chain
 
@@ -139,9 +140,8 @@ class WasteBin():
             the uniform prior distribution of the parameter.
         uncertainty : float, optional (default is 0.1)
             Relative uncertainty assumed for the evidence.
-        const : dict of theano floats, optional (default is None)
-            Must be specified if not all elements of `reconstruct` are
-            True. Specifies the constant values of the parameters that
+        const : dict floats, optional (default is None)
+            Specifies the constant values of the parameters that
             are not varied. Keys are parameter labels. All parameter
             labels must be either in `limits` or `const`.
         plot : bool, optional (default is True)
@@ -173,7 +173,7 @@ class WasteBin():
                 if l in limits:
                     priors.append(pm.Uniform(l, **limits[l]))
                 else:
-                    priors.append(const[l])
+                    priors.append(tt.cast(const[l], 'float64'))
 
             evidence = [self.evidence[i] for i in ids]
             sigma = [uncertainty * e for e in evidence]
