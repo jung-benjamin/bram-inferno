@@ -138,8 +138,11 @@ class WasteBin():
             reconstructed. Each entry is a dict with keys 'lower'
             and 'upper', specifying the lower and upper limits of
             the uniform prior distribution of the parameter.
-        uncertainty : float, optional (default is 0.1)
-            Relative uncertainty assumed for the evidence.
+        uncertainty : float or dict-like, optional (default is 0.1)
+            Relative uncertainty assumed for the evidence. If uncertainty
+            is a float, the same uncertainty is assumed for each ratio.
+            If a dict-like object is passed, it must kontain keys that
+            correspond to elements in `ids`.
         const : dict floats, optional (default is None)
             Specifies the constant values of the parameters that
             are not varied. Keys are parameter labels. All parameter
@@ -176,7 +179,10 @@ class WasteBin():
                     priors.append(tt.cast(const[l], 'float64'))
 
             evidence = [self.evidence[i] for i in ids]
-            sigma = [uncertainty * e for e in evidence]
+            if isinstance(uncertainty, float):
+                sigma = [uncertainty * e for e in evidence]
+            else:
+                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
             models = [self.models[i].predict(priors) for i in ids]
             distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
                        for i, m, s, o in zip(ids, models, sigma, evidence)
@@ -267,7 +273,7 @@ class WasteBinMixture(WasteBin):
             if param in limits:
                 yield pm.Uniform(param, **limits[param])
             else:
-                yield fallpack[param]
+                yield fallback[param]
 
     def inference(self, ids, limits, combination='PredictorSum2',
                   uncertainty=0.1, const=None, plot=True, load=None, **kwargs):
@@ -295,8 +301,11 @@ class WasteBinMixture(WasteBin):
         combination : str, optional (default is PredictorSum2)
             Specify the class to be used for combining the surrogate
             models of each batch into a mixture.
-        uncertainty : float, optional (default is 0.1)
-            Relative uncertainty assumed for the evidence.
+        uncertainty : float or dict-like, optional (default is 0.1)
+            Relative uncertainty assumed for the evidence. If uncertainty
+            is a float, the same uncertainty is assumed for each ratio.
+            If a dict-like object is passed, it must kontain keys that
+            correspond to elements in `ids`.
         const : dict of theano floats, optional (default is None)
             Must be specified if not all elements of `reconstruct` are
             True. Specifies the constant values of the parameters that
@@ -342,7 +351,10 @@ class WasteBinMixture(WasteBin):
                 priors.extend(list(list(self._make_priors(p, limits, const))))
 
             evidence = [self.evidence[i] for i in ids]
-            sigma = [uncertainty * e for e in evidence]
+            if isinstance(uncertainty, float):
+                sigma = [uncertainty * e for e in evidence]
+            else:
+                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
             models = []
             for i in ids:
                 j, k = i.split('/')
