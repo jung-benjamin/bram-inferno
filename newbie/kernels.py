@@ -170,3 +170,45 @@ class PredictorSum2():
     def predict(self, a1, x1, a2, x2):
         """Calculate the posterior predictive of the sum"""
         return a1 * self.k1.predict(x1) + a2 * self.k2.predict(x2)
+
+
+class PredictorQuotient():
+    """Quotient of two predictor kernels
+
+    A composite class of two kernel predictors that calculates the
+    quotient of the predictions. The predictor kernels take the same
+    input parameters.
+    """
+
+    def __init__(self, k1, k2):
+        """Set the two kernel predictor instances
+
+        k1 is the numerator and k2 is the denominator.
+        """
+        self.k1 = k1
+        self.k2 = k2
+
+    @classmethod
+    def from_file(cls, filepath1, modeltype1, filepath2, modeltype2):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath1, filepath2 : str, path-like
+            Path to the file containing model data.
+        modeltype1, modeltype2
+            Model types intended for each kernel. Both must have
+            a `from_file` classmethod.
+
+        Returns:
+        k : PredictorSum2 object
+            Instance of the class.
+        """
+        k1 = modeltype1.from_file(filepath1)
+        k2 = modeltype2.from_file(filepath2)
+        k = cls(k1, k2)
+        return k
+
+    def predict(self, x1):
+        """Calculate the quotient of the posterior predictives"""
+        return self.k1.predict(x1) / self.k2.predict(x1)

@@ -72,3 +72,13 @@ def test_predict_sum2(tmp_path):
     k.predict(2, [700, 5000], 3, [600, 4000])
     assert True
 
+def test_predict_quotient(tmp_path):
+    """Test for the PredictorQuotient class"""
+    p1 = tmp_path / 't1.json'
+    p2 = tmp_path / 't2.json'
+    store_model(p1)
+    store_model(p2)
+    k = kernels.PredictorQuotient.from_file(p1, kernels.ASQEKernelPredictor,
+                                            p2, kernels.ASQEKernelPredictor)
+    k.predict(2, [700, 5000], 3, [600, 4000])
+    assert True

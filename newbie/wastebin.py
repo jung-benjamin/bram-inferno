@@ -51,6 +51,7 @@ class WasteBin():
         self.labels = labels
         self.evidence = evidence
         self.models = {}
+        self.model_ratios = True
 
     @staticmethod
     def make_filepaths(ids, base, form, join='-'):
@@ -93,8 +94,18 @@ class WasteBin():
             String identifiers of the isotopes or isotopic
             ratios.
         """
-        for i in ids:
-            self.models[i] = self.model_type.from_file(self.filepaths[i])
+        if self.model_ratios:
+            for i in ids:
+                self.models[i] = self.model_type.from_file(self.filepaths[i])
+        else:
+            for i in ids:
+                iso1, iso2 = i.split('/')
+                self.models[i] = kernels.PredictorQuotient.from_file(
+                    self.filepaths[iso1],
+                    self.model_type,
+                    self.filepaths[iso2],
+                    self.model_type
+                )
 
     def _joint_probability(self, ids, dists):
         """Calculate the join probability distribution
