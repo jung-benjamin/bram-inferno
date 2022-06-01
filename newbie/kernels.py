@@ -212,3 +212,30 @@ class PredictorQuotient():
     def predict(self, x1):
         """Calculate the quotient of the posterior predictives"""
         return self.k1.predict(x1) / self.k2.predict(x1)
+
+    def predict_many(self, x, eval=False):
+        """Calculate the posterior predictive for a vector x
+
+        Uses the theano.scan method for faster computation of
+        the loop.
+
+        Parameters
+        ----------
+        x : list of float
+            Values for which the posterior predictive is to be
+            evaluated.
+        eval : bool, optional (default is False)
+            If True, the eval() method of the theano object is
+            called before returning the predictions.
+            This significantly increases the runtime.
+
+        Returns
+        -------
+        posterior
+            Posterior predictive for each point in x.
+        """
+        xtt = tt.cast(x, 'float64')
+        posterior, updates = theano.scan(self.predict, xtt)
+        if eval:
+            return posterior.eval()
+        return posterior
