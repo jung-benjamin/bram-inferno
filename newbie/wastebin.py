@@ -25,7 +25,7 @@ class WasteBin():
     reconstructing operating history parameters of reactors.
     """
 
-    def __init__(self, model_type, filepaths, labels, evidence):
+    def __init__(self, model_type, labels, evidence, filepaths=None):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -34,7 +34,7 @@ class WasteBin():
             Surrogate model for predicting the value of an
             isotope concentration or ratio from the operating
             parameters.
-        filepaths : dict
+        filepaths : dict (optional, default is None)
             Paths to each isotope's or each ratio's stored
             model parameters and data. The file must be
             loadable by the model.from_file classmethod.
@@ -84,6 +84,15 @@ class WasteBin():
         p = os.path.join(base, form)
         filepaths = {i: p.format(i.replace('/', join)) for i in ids}
         return filepaths
+
+    def load_filepaths(self, ids, modelfile, prefix):
+        """Load the filepath dict from a json file"""
+        filepaths = {}
+        with open(modelfile, 'r') as f:
+            paths = json.load(f)
+        for i in ids:
+            filepaths[i] = os.path.join(prefix, *paths[i])
+        self.filepaths = filepaths
 
     def load_models(self, ids):
         """Load the surrogate models from files
