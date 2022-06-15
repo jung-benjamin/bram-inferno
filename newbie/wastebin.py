@@ -9,6 +9,7 @@ operating histories from nuclear waste compositions.
 """
 
 import os
+import json
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
@@ -25,7 +26,9 @@ class WasteBin():
     reconstructing operating history parameters of reactors.
     """
 
-    def __init__(self, model_type, labels, evidence, filepaths=None):
+    def __init__(
+        self, model_type, labels, evidence, filepaths=None, model_ratios=True
+        ):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -45,13 +48,16 @@ class WasteBin():
             Isotopic evidence, from which the parameters are
             to be inferred. Keys are identifiers of isotope
             or ratio.
+        model_ratios : bool (default is True)
+            Select whether GPR models are trained on ratios or
+            isotopic concentrations.
         """
         self.model_type = model_type
         self.filepaths = filepaths
         self.labels = labels
         self.evidence = evidence
         self.models = {}
-        self.model_ratios = True
+        self.model_ratios = model_ratios
 
     @staticmethod
     def make_filepaths(ids, base, form, join='-'):
