@@ -64,7 +64,7 @@ class ASQEKernelPredictor():
             with open(filepath, 'r') as f:
                 d = json.load(f)
         elif str(filepath).endswith('.npy'):
-            d = np.load(filepath, allow_pickle=True)
+            d = np.load(filepath, allow_pickle=True).item()
         else:
             msg = 'File format is not supported by the model.'
             print(msg)
