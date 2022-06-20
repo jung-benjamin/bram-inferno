@@ -44,16 +44,16 @@ def test_load_model(tmp_path):
     """Test for load_model method"""
     p = tmp_path / 't.json'
     store_model(p)
-    m1 = wastebin.WasteBin(kernels.ASQEKernelPredictor, {'t': p},
+    m1 = wastebin.WasteBin(kernels.ASQEKernelPredictor, filepaths = {'t': p},
                            labels=None, evidence=None)
     m1.load_models(['t'])
     assert True
-    m2 = wastebin.WasteBin(kernels.ASQEKernelPredictor, {'t': p},
+    m2 = wastebin.WasteBin(kernels.ASQEKernelPredictor, filepaths = {'t': p},
                             labels=None, evidence=None)
     m2.model_ratios = False
     m2.load_models(['t/t'])
     assert True
-    
+
 def test_make_filepaths(tmp_path):
     """Test for make_filepaths staticmethod"""
     fp = tmp_path / 't.json'
