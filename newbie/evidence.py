@@ -79,7 +79,7 @@ class Evidence():
     def iter_batches(self, ratiolist):
         """Yield evidence dicts for all batches"""
         if not self.batches:
-            yield self.create_dict(ratiolist)
+            yield 'Batch', self.create_dict(ratiolist)
         else:
             for b in self.batches:
-                yield self.create_dict(ratiolist, batch=b)
+                yield b, self.create_dict(ratiolist, batch=b)

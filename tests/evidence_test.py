@@ -33,8 +33,8 @@ def test_iter_batches():
     ratios = ['U-238/U-235', 'U-235/U-234']
     target = {'U-238/U-235': 0.99/0.007, 'U-235/U-234': 0.007/0.003}
     ev1 = Evidence(series())
-    for d in ev1.iter_batches(ratios):
+    for b, d in ev1.iter_batches(ratios):
         assert target == d
     ev2 = Evidence(dataframe())
-    for d in ev2.iter_batches(ratios):
+    for b, d in ev2.iter_batches(ratios):
         assert target == d
