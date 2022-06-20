@@ -36,6 +36,12 @@ class Evidence():
         else:
             self.batches = []
 
+    @classmethod
+    def from_csv(cls, filepath):
+        """Create the class from a csv file"""
+        data = pd.read_csv(filepath, index_col=0)
+        return cls(data)
+
     def _iter_ratiolist(self, ratiolist):
         """Iterate over list of ratios
 
