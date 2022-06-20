@@ -83,3 +83,44 @@ class Evidence():
         else:
             for b in self.batches:
                 yield b, self.create_dict(ratiolist, batch=b)
+
+
+class SyntheticEvidence(Evidence):
+    """Simulated evidence for Bayesian inference
+
+    Handles simulated evidence along with the corresponding
+    true parameters for the Bayesian inference and associated
+    analysis.
+    """
+
+    def __init__(self, data, parameters):
+        """Create an instance of the class
+
+        Parameters
+        ----------
+        data : pd.DataFrame or pd.Series
+            Isotopic concentration or nuclide density data. The index
+            contains the nuclide ids and the columns can contain ids
+            for different batches of waste.
+        parameters : pd.DataFrame of pd.Series
+            True parameter values corresponding to the simulated
+            evidence. Index contains identifiers for each batch of
+            evidence and the columns are the parameter labels.
+        """
+        self.isotopes = data
+        self.parameters = parameters
+        if isinstance(data, pd.DataFrame):
+            self.batches = list(data.columns)
+        else:
+            self.batches = []
+
+    @classmethod
+    def from_csv(cls, datapath, parameterpath):
+        """Create the class from two csv files"""
+        data = pd.read_csv(datapath, index_col=0)
+        parameters = pd.read_csv(parameterpath, index_col=0)
+        return cls(data, parameters)
+
+    def true_parameters(self, batch):
+        """Select parameters of a batch of synthetic evidence."""
+        return self.parameters.loc[batch,:]
