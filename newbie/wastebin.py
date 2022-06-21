@@ -215,6 +215,10 @@ class WasteBin():
                       ]
             self._joint_probability(ids, distrib)
 
+            if 'step' in kwargs:
+                step = kwargs['step']
+                kwargs.update({'step': getattr(pm, step)()})
+
             if load is None:
                 ## Silence the deprecation warning
                 if 'return_inferencedata' not in kwargs:
@@ -393,6 +397,10 @@ class WasteBinMixture(WasteBin):
                        for i, m, s, o in zip(ids, models, sigma, evidence)
                       ]
             self._joint_probability(ids, distrib)
+
+            if 'step' in kwargs:
+                step = kwargs['step']
+                kwargs.update({'step': getattr(pm, step)()})
 
             if load is None:
                 ## Silence the deprecation warning
