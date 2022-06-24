@@ -261,7 +261,9 @@ class WasteBinMixture(WasteBin):
     several GPR models are combined to predict one ratio.
     """
 
-    def __init__(self, model_types, filepaths, labels, evidence):
+    def __init__(
+        self, model_types, filepaths, labels, evidence, model_ratios=False
+    ):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -292,6 +294,7 @@ class WasteBinMixture(WasteBin):
         self.labels = labels
         self.evidence = evidence
         self.models = {}
+        self.model_ratios = model_ratios
 
     def load_models(self, ids, combination='PredictorSum2'):
         """Load the surrogate models of the isotopes
@@ -310,13 +313,28 @@ class WasteBinMixture(WasteBin):
             surrogate models.
         """
         m = getattr(kernels, combination)
-        for i in ids:
-            args = list(chain(*[
-                [self.filepaths[j][i], self.model_types[j]] for j in self.batches
-            ]))
-            self.models[i] = m.from_file(*args)
+        if self.model_ratios:
+            for i in ids:
+                args = list(chain(*[
+                    [self.filepaths[j][i], self.model_types[j]]
+                    for j in self.batches
+                ]))
+                self.models[i] = m.from_file(*args)
+        else:
+            for r in ids:
+                i, j = r.split('/')
+                args_i = list(chain(*[
+                    [self.filepaths[b][i], self.model_types[b]]
+                    for b in self.batches
+                ]))
+                mi = m.from_file(*args_i)
+                args_j = list(chain(*[
+                    [self.filepaths[b][j], self.model_types[b]]
+                    for b in self.batches
+                ]))
+                mj = m.from_file(*args_j)
+                self.models[r] = kernels.PredictorQuotient(mi, mj)
 
-    def _make_priors(self, p, limits, fallback):
         """Turn parameter limits into prior distribution"""
         for param in p:
             if param in limits:
@@ -383,7 +401,7 @@ class WasteBinMixture(WasteBin):
             iso_ids = list(set(list(
                 chain(*list(map(lambda x: x.split('/'), ids)))
             )))
-            self.load_models(iso_ids, combination)
+            self.load_models(ids, combination)
 
             labels = list(chain(*[d for i, d in self.labels.items()]))
             ## Create priors
@@ -406,12 +424,11 @@ class WasteBinMixture(WasteBin):
                 sigma = [self.evidence[i] * uncertainty[i] for i in ids]
             models = []
             for i in ids:
-                j, k = i.split('/')
-                models.append(self.models[j].predict(priors[0], priors[1:3],
-                                                     priors[3], priors[4:6])
-                            / self.models[k].predict(priors[0], priors[1:3],
-                                                     priors[3], priors[4:6])
-                            )
+                models.append(
+                    self.models[j].predict(
+                        priors[0], priors[1:3], priors[3], priors[4:6]
+                    )
+                )
             distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
                        for i, m, s, o in zip(ids, models, sigma, evidence)
                       ]

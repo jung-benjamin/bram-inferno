@@ -43,7 +43,21 @@ LIMITS = {
     'Downtime': {'lower': 0, 'upper': 10000},
 }
 
+MXT_LIMITS = {
+    'alpha1': {'lower': 0, 'upper': 5},
+    'Uptime1': {'lower': 100, 'upper': 2000},
+    'Downtime1': {'lower': 0, 'upper': 10000},
+    'alpha2': {'lower': 0, 'upper': 5},
+    'Uptime2': {'lower': 100, 'upper': 2000},
+    'Downtime2': {'lower': 0, 'upper': 10000},
+}
+
 LABELS = ['Uptime', 'Downtime']
+
+MXT_LABELS={
+    'A': ['alpha1', 'Uptime1', 'Downtime1',],
+    'B': ['alpha2', 'Uptime2', 'Downtime2',],
+}
 
 EVIDENCE = {'t': 1., 't/t': 1., 't1/t1': 1., 't2/t2': 1.}
 
@@ -120,3 +134,17 @@ def test_joint_probability(tmp_path):
         distr = m._make_distributions(['t1/t1', 't2/t2'], 0.1)
         m._joint_probability(['t1/t1', 't2/t2'], distr)
         assert True
+
+def test_mixture_load_model(tmp_path):
+    """Test for load models method of WasteBinMixture"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}},
+        labels=MXT_LABELS,
+        evidence=None
+    )
+    m2.load_models(['t1/t1'])
+    assert True
+
