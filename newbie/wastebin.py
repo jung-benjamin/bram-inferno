@@ -145,8 +145,16 @@ class WasteBin():
             l = pm.DensityDist('L', joint, observed=dict(zip(ids, dists)))
         return l
 
-    def inference(self, ids, limits, uncertainty=0.1, const=None,
-                  plot=True, load=None, **kwargs):
+    def inference(
+        self,
+        ids,
+        limits,
+        uncertainty=0.1,
+        const=None,
+        plot=True,
+        load=None,
+        **kwargs,
+        ):
         """Run bayesian inference with pymc uniform priors
 
         Creates the Model context manager of pymc and runs bayesian
@@ -194,11 +202,8 @@ class WasteBin():
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
             self.load_models(ids)
-
             labels = self.labels
-            ## Create priors
             priors = self._make_priors(labels, limits, const)
-
             distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
