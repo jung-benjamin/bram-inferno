@@ -122,6 +122,38 @@ class WasteBin():
                     self.model_type
                 )
 
+    def _make_priors(self, p, limits, fallback):
+        """Turn parameter limits into prior distribution
+
+        Needs to be called within the pm.Model context.
+        """
+        priors = []
+        for param in p:
+            if param in limits:
+                priors.append(pm.Uniform(param, **limits[param]))
+            else:
+                priors.append(tt.cast(fallback[param], 'float64'))
+        self.priors = priors
+        return priors
+
+    def _make_distributions(self, ids, uncertainty):
+        """Create a normal distribution for each isotpic ratio
+
+        The priors need to be created and the models need to be
+        loaded before calling this method.
+        """
+        evidence = [self.evidence[i] for i in ids]
+        if isinstance(uncertainty, float):
+            sigma = [uncertainty * e for e in evidence]
+        else:
+            sigma = [self.evidence[i] * uncertainty[i] for i in ids]
+        models = [self.models[i].predict(self.priors) for i in ids]
+        distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
+                   for i, m, s, o in zip(ids, models, sigma, evidence)
+                  ]
+        self.probabilities = distrib
+        return distrib
+
     def _joint_probability(self, ids, dists):
         """Calculate the join probability distribution
 
@@ -197,22 +229,9 @@ class WasteBin():
 
             labels = self.labels
             ## Create priors
-            priors = []
-            for l in labels:
-                if l in limits:
-                    priors.append(pm.Uniform(l, **limits[l]))
-                else:
-                    priors.append(tt.cast(const[l], 'float64'))
+            priors = self._make_priors(labels, limits, const)
 
-            evidence = [self.evidence[i] for i in ids]
-            if isinstance(uncertainty, float):
-                sigma = [uncertainty * e for e in evidence]
-            else:
-                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
-            models = [self.models[i].predict(priors) for i in ids]
-            distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
-                       for i, m, s, o in zip(ids, models, sigma, evidence)
-                      ]
+            distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
             if 'step' in kwargs:
