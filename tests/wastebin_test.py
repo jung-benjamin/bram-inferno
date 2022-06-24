@@ -148,3 +148,21 @@ def test_mixture_load_model(tmp_path):
     m2.load_models(['t1/t1'])
     assert True
 
+def test_mixture_make_priors(tmp_path):
+    """Test for _make_priors method of WasteBinMixture"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}},
+        labels=MXT_LABELS,
+        evidence=None
+    )
+    with pm.Model():
+        m2.load_models(['t1/t1'])
+        m2._make_priors(
+            labels=MXT_LABELS,
+            limits=MXT_LIMITS,
+            fallback=None
+        )
+    assert True

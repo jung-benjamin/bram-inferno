@@ -335,12 +335,22 @@ class WasteBinMixture(WasteBin):
                 mj = m.from_file(*args_j)
                 self.models[r] = kernels.PredictorQuotient(mi, mj)
 
+    def _make_priors(self, labels, limits, fallback):
         """Turn parameter limits into prior distribution"""
-        for param in p:
-            if param in limits:
-                yield pm.Uniform(param, **limits[param])
-            else:
-                yield fallback[param]
+        def prior_generator(par, lim, fall):
+            for param in par:
+                if param in lim:
+                    yield pm.Uniform(param, **lim[param])
+                else:
+                    yield fall[param]
+
+        priors = []
+        for b, l in labels.items():
+            a, p = l[0], l[1:]
+            priors.extend(list(prior_generator([a], limits, fallback)))
+            priors.extend(list(list(prior_generator(p, limits, fallback))))
+        self.priors = priors
+        return priors
 
     def inference(self, ids, limits, combination='PredictorSum2',
                   uncertainty=0.1, const=None, plot=True, load=None, **kwargs):
@@ -405,17 +415,7 @@ class WasteBinMixture(WasteBin):
 
             labels = list(chain(*[d for i, d in self.labels.items()]))
             ## Create priors
-            priors = []
-            # for l in labels:
-            #     if l in limits:
-            #         priors.append(pm.Uniform(l, **limits[l]))
-            #     else:
-            #         priors.append(const[l])
-
-            for b, l in self.labels.items():
-                a, p = l[0], l[1:]
-                priors.extend(list(self._make_priors([a], limits, const)))
-                priors.extend(list(list(self._make_priors(p, limits, const))))
+            priors = self._make_priors(labels, limits, const)
 
             evidence = [self.evidence[i] for i in ids]
             if isinstance(uncertainty, float):
