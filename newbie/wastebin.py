@@ -408,30 +408,12 @@ class WasteBinMixture(WasteBin):
         with pm.Model():
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
-            iso_ids = list(set(list(
-                chain(*list(map(lambda x: x.split('/'), ids)))
-            )))
             self.load_models(ids, combination)
 
-            labels = list(chain(*[d for i, d in self.labels.items()]))
+            labels = self.labels
             ## Create priors
             priors = self._make_priors(labels, limits, const)
-
-            evidence = [self.evidence[i] for i in ids]
-            if isinstance(uncertainty, float):
-                sigma = [uncertainty * e for e in evidence]
-            else:
-                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
-            models = []
-            for i in ids:
-                models.append(
-                    self.models[j].predict(
-                        priors[0], priors[1:3], priors[3], priors[4:6]
-                    )
-                )
-            distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
-                       for i, m, s, o in zip(ids, models, sigma, evidence)
-                      ]
+            distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
             if 'step' in kwargs:
