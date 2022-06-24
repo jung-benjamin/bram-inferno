@@ -122,6 +122,38 @@ class WasteBin():
                     self.model_type
                 )
 
+    def _make_priors(self, p, limits, fallback):
+        """Turn parameter limits into prior distribution
+
+        Needs to be called within the pm.Model context.
+        """
+        priors = []
+        for param in p:
+            if param in limits:
+                priors.append(pm.Uniform(param, **limits[param]))
+            else:
+                priors.append(tt.cast(fallback[param], 'float64'))
+        self.priors = priors
+        return priors
+
+    def _make_distributions(self, ids, uncertainty):
+        """Create a normal distribution for each isotpic ratio
+
+        The priors need to be created and the models need to be
+        loaded before calling this method.
+        """
+        evidence = [self.evidence[i] for i in ids]
+        if isinstance(uncertainty, float):
+            sigma = [uncertainty * e for e in evidence]
+        else:
+            sigma = [self.evidence[i] * uncertainty[i] for i in ids]
+        models = [self.models[i].predict(self.priors) for i in ids]
+        distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
+                   for i, m, s, o in zip(ids, models, sigma, evidence)
+                  ]
+        self.probabilities = distrib
+        return distrib
+
     def _joint_probability(self, ids, dists):
         """Calculate the join probability distribution
 
@@ -197,22 +229,9 @@ class WasteBin():
 
             labels = self.labels
             ## Create priors
-            priors = []
-            for l in labels:
-                if l in limits:
-                    priors.append(pm.Uniform(l, **limits[l]))
-                else:
-                    priors.append(tt.cast(const[l], 'float64'))
+            priors = self._make_priors(labels, limits, const)
 
-            evidence = [self.evidence[i] for i in ids]
-            if isinstance(uncertainty, float):
-                sigma = [uncertainty * e for e in evidence]
-            else:
-                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
-            models = [self.models[i].predict(priors) for i in ids]
-            distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
-                       for i, m, s, o in zip(ids, models, sigma, evidence)
-                      ]
+            distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
             if 'step' in kwargs:
@@ -242,7 +261,10 @@ class WasteBinMixture(WasteBin):
     several GPR models are combined to predict one ratio.
     """
 
-    def __init__(self, model_types, filepaths, labels, evidence):
+    def __init__(
+        self, model_types, filepaths, labels, evidence, model_ratios=False,
+        combination='PredictorSum2'
+    ):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -273,8 +295,10 @@ class WasteBinMixture(WasteBin):
         self.labels = labels
         self.evidence = evidence
         self.models = {}
+        self.model_ratios = model_ratios
+        self.combination = getattr(kernels, combination)
 
-    def load_models(self, ids, combination='PredictorSum2'):
+    def load_models(self, ids):
         """Load the surrogate models of the isotopes
 
         Takes a list of isotope identifiers and creates a
@@ -290,22 +314,47 @@ class WasteBinMixture(WasteBin):
             Specifies the class that is used to combine the
             surrogate models.
         """
-        m = getattr(kernels, combination)
-        for i in ids:
-            args = list(chain(*[
-                [self.filepaths[j][i], self.model_types[j]] for j in self.batches
-            ]))
-            self.models[i] = m.from_file(*args)
+        m = self.combination
+        if self.model_ratios:
+            for i in ids:
+                args = list(chain(*[
+                    [self.filepaths[j][i], self.model_types[j]]
+                    for j in self.batches
+                ]))
+                self.models[i] = m.from_file(*args)
+        else:
+            for r in ids:
+                i, j = r.split('/')
+                args_i = list(chain(*[
+                    [self.filepaths[b][i], self.model_types[b]]
+                    for b in self.batches
+                ]))
+                mi = m.from_file(*args_i)
+                args_j = list(chain(*[
+                    [self.filepaths[b][j], self.model_types[b]]
+                    for b in self.batches
+                ]))
+                mj = m.from_file(*args_j)
+                self.models[r] = kernels.PredictorQuotient(mi, mj)
 
-    def _make_priors(self, p, limits, fallback):
+    def _make_priors(self, labels, limits, fallback):
         """Turn parameter limits into prior distribution"""
-        for param in p:
-            if param in limits:
-                yield pm.Uniform(param, **limits[param])
-            else:
-                yield fallback[param]
+        def prior_generator(par, lim, fall):
+            for param in par:
+                if param in lim:
+                    yield pm.Uniform(param, **lim[param])
+                else:
+                    yield fall[param]
 
-    def inference(self, ids, limits, combination='PredictorSum2',
+        priors = []
+        for b, l in labels.items():
+            a, p = l[0], l[1:]
+            priors.extend(list(prior_generator([a], limits, fallback)))
+            priors.extend(list(list(prior_generator(p, limits, fallback))))
+        self.priors = priors
+        return priors
+
+    def inference(self, ids, limits,
                   uncertainty=0.1, const=None, plot=True, load=None, **kwargs):
         """Run bayesian inference with pymc uniform priors
 
@@ -361,41 +410,12 @@ class WasteBinMixture(WasteBin):
         with pm.Model():
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
-            iso_ids = list(set(list(
-                chain(*list(map(lambda x: x.split('/'), ids)))
-            )))
-            self.load_models(iso_ids, combination)
+            self.load_models(ids)
 
-            labels = list(chain(*[d for i, d in self.labels.items()]))
+            labels = self.labels
             ## Create priors
-            priors = []
-            # for l in labels:
-            #     if l in limits:
-            #         priors.append(pm.Uniform(l, **limits[l]))
-            #     else:
-            #         priors.append(const[l])
-
-            for b, l in self.labels.items():
-                a, p = l[0], l[1:]
-                priors.extend(list(self._make_priors([a], limits, const)))
-                priors.extend(list(list(self._make_priors(p, limits, const))))
-
-            evidence = [self.evidence[i] for i in ids]
-            if isinstance(uncertainty, float):
-                sigma = [uncertainty * e for e in evidence]
-            else:
-                sigma = [self.evidence[i] * uncertainty[i] for i in ids]
-            models = []
-            for i in ids:
-                j, k = i.split('/')
-                models.append(self.models[j].predict(priors[0], priors[1:3],
-                                                     priors[3], priors[4:6])
-                            / self.models[k].predict(priors[0], priors[1:3],
-                                                     priors[3], priors[4:6])
-                            )
-            distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
-                       for i, m, s, o in zip(ids, models, sigma, evidence)
-                      ]
+            priors = self._make_priors(labels, limits, const)
+            distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
             if 'step' in kwargs:

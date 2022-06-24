@@ -3,6 +3,9 @@
 """Tests for the kernels module"""
 
 import json
+
+import pymc3 as pm
+
 from newbie import kernels, wastebin
 
 def model_dict():
@@ -35,6 +38,29 @@ def model_dict():
     }
     return d
 
+LIMITS = {
+    'Uptime': {'lower': 100, 'upper': 2000},
+    'Downtime': {'lower': 0, 'upper': 10000},
+}
+
+MXT_LIMITS = {
+    'alpha1': {'lower': 0, 'upper': 5},
+    'Uptime1': {'lower': 100, 'upper': 2000},
+    'Downtime1': {'lower': 0, 'upper': 10000},
+    'alpha2': {'lower': 0, 'upper': 5},
+    'Uptime2': {'lower': 100, 'upper': 2000},
+    'Downtime2': {'lower': 0, 'upper': 10000},
+}
+
+LABELS = ['Uptime', 'Downtime']
+
+MXT_LABELS={
+    'A': ['alpha1', 'Uptime1', 'Downtime1',],
+    'B': ['alpha2', 'Uptime2', 'Downtime2',],
+}
+
+EVIDENCE = {'t': 1., 't/t': 1., 't1/t1': 1., 't2/t2': 1.}
+
 def store_model(temp):
     """Store model_dict to a json file"""
     with open(temp, 'w') as f:
@@ -59,3 +85,105 @@ def test_make_filepaths(tmp_path):
     fp = tmp_path / 't.json'
     d = wastebin.WasteBin.make_filepaths(['t'], tmp_path, '{}.json')
     assert d['t'] == str(fp)
+
+def test_make_priors():
+    """Test for the _make_priors method"""
+    m = wastebin.WasteBin(
+        kernels.ASQEKernelPredictor, labels=None, evidence=None
+    )
+    with pm.Model():
+        m._make_priors(LABELS, LIMITS, None)
+        assert True
+    with pm.Model():
+        m._make_priors(
+            LABELS,
+            {'Uptime': {'lower': 100, 'upper': 2000}},
+            {'Downtime': 1000}
+        )
+        assert True
+
+def test_make_distributions(tmp_path):
+    """Test for the _make_distributions method"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m = wastebin.WasteBin(kernels.ASQEKernelPredictor, filepaths = {'t': p},
+                            labels=None, evidence=EVIDENCE)
+    m.model_ratios = False
+    with pm.Model():
+        m.load_models(['t/t'])
+        m._make_priors(LABELS, LIMITS, None)
+        m._make_distributions(['t/t'], 0.1)
+        assert True
+
+def test_joint_probability(tmp_path):
+    """Test for the _joint_probability method"""
+    p1 = tmp_path / 't1.json'
+    p2 = tmp_path / 't2.json'
+    store_model(p1)
+    store_model(p2)
+    m = wastebin.WasteBin(
+        kernels.ASQEKernelPredictor,
+        filepaths={'t1': p1, 't2': p2},
+        labels=None,
+        evidence=EVIDENCE
+    )
+    m.model_ratios = False
+    with pm.Model():
+        m.load_models(['t1/t1', 't2/t2'])
+        m._make_priors(LABELS, LIMITS, None)
+        distr = m._make_distributions(['t1/t1', 't2/t2'], 0.1)
+        m._joint_probability(['t1/t1', 't2/t2'], distr)
+        assert True
+
+def test_mixture_load_model(tmp_path):
+    """Test for load models method of WasteBinMixture"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}},
+        labels=MXT_LABELS,
+        evidence=None
+    )
+    m2.load_models(['t1/t1'])
+    assert True
+
+def test_mixture_make_priors(tmp_path):
+    """Test for _make_priors method of WasteBinMixture"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}},
+        labels=MXT_LABELS,
+        evidence=None
+    )
+    with pm.Model():
+        m2.load_models(['t1/t1'])
+        m2._make_priors(
+            labels=MXT_LABELS,
+            limits=MXT_LIMITS,
+            fallback=None
+        )
+    assert True
+
+def test_mixture_model_building(tmp_path):
+    """Test for building the model in WasteBinMixture"""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p, 't2': p}, 'B': {'t1': p, 't2':p}},
+        labels=MXT_LABELS,
+        evidence=EVIDENCE
+    )
+    with pm.Model():
+        m2.load_models(['t1/t1', 't2/t2'])
+        m2._make_priors(
+            labels=MXT_LABELS,
+            limits=MXT_LIMITS,
+            fallback=None
+        )
+        dist = m2._make_distributions(['t1/t1', 't2/t2'], 0.1)
+        m2._joint_probability(['t1/t1', 't2/t2',], dist)
+    assert True
