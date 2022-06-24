@@ -230,9 +230,13 @@ class WasteBinMixture(WasteBin):
     """
 
     def __init__(
-        self, model_types, filepaths, labels, evidence, model_ratios=False,
+        self,
+        model_type,
+        labels, evidence,
+        filepaths=None,
+        model_ratios=False,
         combination='PredictorSum2'
-    ):
+        ):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -241,11 +245,6 @@ class WasteBinMixture(WasteBin):
             Dictionary associating each batch component
             of the mixture with a surrogate model class from
             the kernels module.
-        filepaths : dict
-            Dictionary of filepath dictionaries. Associates
-            each batch component of the miture with a set of
-            filepaths from which the trained models of the
-            isotopes can be loaded.
         labels : dict
             Dictionary associating each batch component of
             the mixture with a list of parameter names.
@@ -253,17 +252,21 @@ class WasteBinMixture(WasteBin):
             Isotopic evidence, from which the parameters are
             to be inferred. Keys are identifiers of isotope
             or ratio.
+        filepaths : dict
+            Dictionary of filepath dictionaries. Associates
+            each batch component of the miture with a set of
+            filepaths from which the trained models of the
+            isotopes can be loaded.
+        model_ratios : bool (optional, default is False)
+            Set to True if GP-models predict isotopic ratios
+            directly. This will not lead to a physically
+            meaningful mixture of isotopes.
+        combination : str (optional, default is PredictorSum2)
+            Specify the class used for adding models to form
+            the mixture.
         """
-        ## Verify that each dict has the same keys
-        assert set(model_types.keys()) == set(filepaths.keys())
-        assert set(filepaths.keys()) == set(labels.keys())
-        self.batches = list(model_types.keys())
-        self.model_types = model_types
-        self.filepaths = filepaths
-        self.labels = labels
-        self.evidence = evidence
-        self.models = {}
-        self.model_ratios = model_ratios
+        super().__init__(model_type, labels, evidence, filepaths, model_ratios)
+        self.batches = list(model_type.keys())
         self.combination = getattr(kernels, combination)
 
     def load_filepaths(self, ids, modelfile, prefix):
@@ -302,7 +305,7 @@ class WasteBinMixture(WasteBin):
         if self.model_ratios:
             for i in ids:
                 args = list(chain(*[
-                    [self.filepaths[j][i], self.model_types[j]]
+                    [self.filepaths[j][i], self.model_type[j]]
                     for j in self.batches
                 ]))
                 self.models[i] = m.from_file(*args)
@@ -310,12 +313,12 @@ class WasteBinMixture(WasteBin):
             for r in ids:
                 i, j = r.split('/')
                 args_i = list(chain(*[
-                    [self.filepaths[b][i], self.model_types[b]]
+                    [self.filepaths[b][i], self.model_type[b]]
                     for b in self.batches
                 ]))
                 mi = m.from_file(*args_i)
                 args_j = list(chain(*[
-                    [self.filepaths[b][j], self.model_types[b]]
+                    [self.filepaths[b][j], self.model_type[b]]
                     for b in self.batches
                 ]))
                 mj = m.from_file(*args_j)
