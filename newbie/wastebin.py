@@ -298,6 +298,22 @@ class WasteBinMixture(WasteBin):
         self.model_ratios = model_ratios
         self.combination = getattr(kernels, combination)
 
+    def load_filepaths(self, ids, modelfile, prefix):
+        """Load the filepath dict from a json file
+
+        This method can only be used if both all batches use
+        the same gp models.
+        """
+        filepaths = {}
+        with open(modelfile, 'r') as f:
+            paths = json.load(f)
+        for b in self.batches:
+            fp = {}
+            for i in ids:
+                fp[i] = os.path.join(prefix, *paths[i])
+            filepaths[b] = fp
+        self.filepaths = filepaths
+
     def load_models(self, ids):
         """Load the surrogate models of the isotopes
 
