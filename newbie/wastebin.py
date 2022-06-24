@@ -59,38 +59,6 @@ class WasteBin():
         self.models = {}
         self.model_ratios = model_ratios
 
-    @staticmethod
-    def make_filepaths(ids, base, form, join='-'):
-        """Create dictionary of filepaths
-
-        If ids are isotopic ratios separated by a /,
-        the / is replaced by a -.
-
-        Parameters
-        ----------
-        ids : list
-            List of string identifiers of the isotopes or
-            isotopic ratios.
-        base : str, path-like
-            Path to the directory where the model files
-            are stored.
-        form : str
-            String for formatting the filename.
-            E.g.: 'kernel{}.json'
-        join : str, optional (default is "-")
-            Character with which isotopes are separated in
-            the names of the kernel files.
-
-        Returns
-        -------
-        filepaths : dict
-            Dictionary of filepaths, with model identifiers
-            as keys.
-        """
-        p = os.path.join(base, form)
-        filepaths = {i: p.format(i.replace('/', join)) for i in ids}
-        return filepaths
-
     def load_filepaths(self, ids, modelfile, prefix):
         """Load the filepath dict from a json file"""
         filepaths = {}

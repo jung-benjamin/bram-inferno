@@ -80,11 +80,6 @@ def test_load_model(tmp_path):
     m2.load_models(['t/t'])
     assert True
 
-def test_make_filepaths(tmp_path):
-    """Test for make_filepaths staticmethod"""
-    fp = tmp_path / 't.json'
-    d = wastebin.WasteBin.make_filepaths(['t'], tmp_path, '{}.json')
-    assert d['t'] == str(fp)
 
 def test_make_priors():
     """Test for the _make_priors method"""
