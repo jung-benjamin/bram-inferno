@@ -262,7 +262,8 @@ class WasteBinMixture(WasteBin):
     """
 
     def __init__(
-        self, model_types, filepaths, labels, evidence, model_ratios=False
+        self, model_types, filepaths, labels, evidence, model_ratios=False,
+        combination='PredictorSum2'
     ):
         """Set model type and filepaths for loading models
 
@@ -295,8 +296,9 @@ class WasteBinMixture(WasteBin):
         self.evidence = evidence
         self.models = {}
         self.model_ratios = model_ratios
+        self.combination = getattr(kernels, combination)
 
-    def load_models(self, ids, combination='PredictorSum2'):
+    def load_models(self, ids):
         """Load the surrogate models of the isotopes
 
         Takes a list of isotope identifiers and creates a
@@ -312,7 +314,7 @@ class WasteBinMixture(WasteBin):
             Specifies the class that is used to combine the
             surrogate models.
         """
-        m = getattr(kernels, combination)
+        m = self.combination
         if self.model_ratios:
             for i in ids:
                 args = list(chain(*[
@@ -352,7 +354,7 @@ class WasteBinMixture(WasteBin):
         self.priors = priors
         return priors
 
-    def inference(self, ids, limits, combination='PredictorSum2',
+    def inference(self, ids, limits,
                   uncertainty=0.1, const=None, plot=True, load=None, **kwargs):
         """Run bayesian inference with pymc uniform priors
 
@@ -408,7 +410,7 @@ class WasteBinMixture(WasteBin):
         with pm.Model():
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
-            self.load_models(ids, combination)
+            self.load_models(ids)
 
             labels = self.labels
             ## Create priors
