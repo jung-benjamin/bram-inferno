@@ -167,9 +167,9 @@ class PredictorSum2():
         k = cls(k1, k2)
         return k
 
-    def predict(self, a1, x1, a2, x2):
+    def predict(self, p):
         """Calculate the posterior predictive of the sum"""
-        return a1 * self.k1.predict(x1) + a2 * self.k2.predict(x2)
+        return p[0] * self.k1.predict(p[1]) + p[2] * self.k2.predict(p[3])
 
 
 class PredictorQuotient():
