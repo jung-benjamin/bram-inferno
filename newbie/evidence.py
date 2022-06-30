@@ -124,3 +124,46 @@ class SyntheticEvidence(Evidence):
     def true_parameters(self, batch):
         """Select parameters of a batch of synthetic evidence."""
         return self.parameters.loc[batch,:]
+
+
+class Mixture(Evidence):
+    """Isotopic composition of mixtures of batches"""
+
+    def __init__(self, data, mixing_ids, mixing_ratios):
+        """Create mixtures of isotopic compositions
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Isotopic composition data for at least two batches
+            of waste. Ids need to be in columns.
+        mixing_ids : list of list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of list of float
+            Ratios for mixing the batches respectively.
+        """
+        self.isotopes = pd.concat(
+            [self._mix(data, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
+            axis=1,
+        )
+
+    def _mix(self, data, mixing_ids, mixing_ratios):
+        """Mix two or more isotopic compositions
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Isotopic composition data for at least two batches
+            of waste. Ids need to be in columns.
+        mixing_ids : list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of float
+            Ratios for mixing the batches respectively.
+        """
+        conc = [a * data[n] for a, n in zip(mixing_ratios, mixing_ids)]
+        mix = pd.concat(conc, axis=1).sum(axis=1)
+        key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
+        mix.name = key
+        return mix

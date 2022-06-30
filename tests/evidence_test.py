@@ -4,7 +4,7 @@
 
 import pandas as pd
 
-from newbie.evidence import Evidence
+from newbie.evidence import Evidence, Mixture
 
 
 def series():
@@ -38,3 +38,18 @@ def test_iter_batches():
     ev2 = Evidence(dataframe())
     for b, d in ev2.iter_batches(ratios):
         assert target == d
+
+
+def test_mixture():
+    """Test for the Mixture class"""
+    mix = Mixture(dataframe(), [['A', 'B']], [[1., 1.]])
+    test1 = dataframe()['A'] + dataframe()['B']
+    test1.name = '1.0A+1.0B'
+    test1 = pd.concat([test1], axis=1)
+    assert (mix.isotopes == test1).all().all()
+    test2 = dataframe()['A'] + dataframe()['C']
+    test2.name = '1.0A+1.0C'
+    test2 = pd.concat([test2], axis=1)
+    mix2 = Mixture(dataframe(), [['A', 'B'], ['A', 'C']], [[1., 1.], [1., 1.]])
+    test_comb = pd.concat([test1, test2], axis=1)
+    assert (mix2.isotopes == test_comb).all().all()
