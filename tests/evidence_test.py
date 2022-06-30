@@ -4,7 +4,7 @@
 
 import pandas as pd
 
-from newbie.evidence import Evidence, Mixture
+from newbie.evidence import Evidence, Mixture, SyntheticEvidence
 
 
 def series():
@@ -15,6 +15,20 @@ def series():
 def dataframe():
     """Dataframe with nuclide measurements"""
     df = pd.concat([series(), series(), series()], keys=['A', 'B', 'C'], axis=1)
+    return df
+
+
+def param_series():
+    """Series with parameter values"""
+    return pd.Series([2, 200], index=['Burnup', 'Cooling'])
+
+def parameters():
+    """DataFrame with parameter values"""
+    df = pd.concat(
+        [param_series(), param_series(), param_series()],
+        keys=['A', 'B', 'C'],
+        axis=0
+    )
     return df
 
 
@@ -38,6 +52,12 @@ def test_iter_batches():
     ev2 = Evidence(dataframe())
     for b, d in ev2.iter_batches(ratios):
         assert target == d
+
+
+def test_synthetic_evidence():
+    """Test for the SyntheticEvidence class"""
+    synth = SyntheticEvidence(dataframe(), parameters())
+    assert (synth.true_parameters('A') == parameters().loc['A',:]).all()
 
 
 def test_mixture():
