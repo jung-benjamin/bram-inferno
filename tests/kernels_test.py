@@ -69,7 +69,7 @@ def test_predict_sum2(tmp_path):
     store_model(p2)
     k = kernels.PredictorSum2.from_file(p1, kernels.ASQEKernelPredictor,
                                         p2, kernels.ASQEKernelPredictor)
-    k.predict([2, [700, 5000], 3, [600, 4000]])
+    k.predict([2, *[700, 5000], 3, *[600, 4000]])
     assert True
 
 def test_predict_quotient(tmp_path):
