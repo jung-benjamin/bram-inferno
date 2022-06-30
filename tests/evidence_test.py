@@ -4,7 +4,7 @@
 
 import pandas as pd
 
-from newbie.evidence import Evidence, Mixture, SyntheticEvidence
+from newbie.evidence import Evidence, Mixture, SyntheticEvidence, SyntheticMixture
 
 
 def series():
@@ -27,8 +27,8 @@ def parameters():
     df = pd.concat(
         [param_series(), param_series(), param_series()],
         keys=['A', 'B', 'C'],
-        axis=0
-    )
+        axis=1
+    ).T
     return df
 
 
@@ -73,3 +73,18 @@ def test_mixture():
     mix2 = Mixture(dataframe(), [['A', 'B'], ['A', 'C']], [[1., 1.], [1., 1.]])
     test_comb = pd.concat([test1, test2], axis=1)
     assert (mix2.isotopes == test_comb).all().all()
+
+
+def test_synthetic_mixture():
+    """Test for the SyntheticMixture class"""
+    synth = SyntheticMixture(
+        dataframe(),
+        parameters(),
+        [['A', 'B'], ['A', 'C']],
+        [[1., 1.], [1., 1.]]
+    )
+    test1 = {'alpha_A': 1., 'Burnup_A': 2, 'Cooling_A': 200,
+             'alpha_B': 1., 'Burnup_B': 2, 'Cooling_B': 200
+             }
+    test1 = pd.Series(test1, name='1.0A+1.0B')
+    assert (test1 == synth.true_parameters('1.0A+1.0B')).all()

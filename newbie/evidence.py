@@ -123,7 +123,7 @@ class SyntheticEvidence(Evidence):
 
     def true_parameters(self, batch):
         """Select parameters of a batch of synthetic evidence."""
-        return self.parameters.loc[batch,:]
+        return self.parameters.loc[batch,:].dropna()
 
 
 class Mixture(Evidence):
@@ -185,3 +185,60 @@ class Mixture(Evidence):
         """
         data = pd.read_csv(filepath, index_col=0)
         return cls(data, mixing_ids, mixing_ratios)
+
+
+class SyntheticMixture(Mixture, SyntheticEvidence):
+    """Mixtures of simulated evidence for Bayesian inference
+
+    Handles simulated evidence along with the corresponding
+    true parameters for the Bayesian inference and associated
+    analysis.
+    """
+
+    def __init__(self, data, parameters, mixing_ids, mixing_ratios):
+        """Create an instance of the class
+
+        Parameters
+        ----------
+        data : pd.DataFrame or pd.Series
+            Isotopic concentration or nuclide density data. The index
+            contains the nuclide ids and the columns can contain ids
+            for different batches of waste.
+        parameters : pd.DataFrame of pd.Series
+            True parameter values corresponding to the simulated
+            evidence. Index contains identifiers for each batch of
+            evidence and the columns are the parameter labels.
+        mixing_ids : list of list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of list of float
+            Ratios for mixing the batches respectively.
+        """
+        super().__init__(data, mixing_ids, mixing_ratios)
+        self.parameters = pd.concat(
+            [self._mix_parameters(parameters, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
+            axis=1
+        ).T
+
+    def _mix_parameters(self, parameters, mixing_ids, mixing_ratios):
+        """Mix parameters of two or more isotopic compositions
+
+        Parameters
+        ----------
+        parameters : pd.DataFrame of pd.Series
+            True parameter values corresponding to the simulated
+            evidence. Index contains identifiers for each batch of
+            evidence and the columns are the parameter labels.
+        mixing_ids : list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of float
+            Ratios for mixing the batches respectively.
+        """
+        params = {}
+        for i, r in zip(mixing_ids, mixing_ratios):
+            params[f'alpha_{i}'] = r
+            for c, col in parameters.items():
+                params[f'{c}_{i}'] = col[i]
+        key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
+        return pd.Series(params, name=key)
