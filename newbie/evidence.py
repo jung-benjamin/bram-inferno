@@ -167,3 +167,21 @@ class Mixture(Evidence):
         key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
         mix.name = key
         return mix
+
+    @classmethod
+    def from_csv(cls, filepath, mixing_ids, mixing_ratios):
+        """Create the class from a csv file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            File containing the isotopic composition data for at
+            least two batches of waste. Ids need to be in columns.
+        mixing_ids : list of list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of list of float
+            Ratios for mixing the batches respectively.
+        """
+        data = pd.read_csv(filepath, index_col=0)
+        return cls(data, mixing_ids, mixing_ratios)
