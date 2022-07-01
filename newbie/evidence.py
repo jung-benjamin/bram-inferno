@@ -219,6 +219,24 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             [self._mix_parameters(parameters, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
             axis=1
         ).T
+        self._get_mixtures(mixing_ids, mixing_ratios)
+
+    def _get_mixtures(self, mixing_ids, mixing_ratios):
+        """Associate mixture names with the names of components
+
+        Parameters
+        ----------
+        mixing_ids : list of list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of list of float
+            Ratios for mixing the batches respectively.
+        """
+        mixtures = {}
+        for id_, ratio in zip(mixing_ids, mixing_ratios):
+            key = '+'.join([f'{a}{n}' for a, n in zip(ratio, id_)])
+            mixtures[key] = mixing_ids
+        self.mixtures = mixtures
 
     def _mix_parameters(self, parameters, mixing_ids, mixing_ratios):
         """Mix parameters of two or more isotopic compositions
@@ -242,3 +260,14 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
                 params[f'{c}_{i}'] = col[i]
         key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
         return pd.Series(params, name=key)
+
+    def group_labels(self):
+        """Group the parameter labels by their batch ids"""
+        groups = {}
+        for k, components in self.mixtures.items():
+            p_list = list(self.parameters[k].dropna().index)
+            mxt_group = {}
+            for p in p_list:
+                for c in components:
+                    if c in p:
+                        mxt_group[c] =
