@@ -147,6 +147,7 @@ class Mixture(Evidence):
             [self._mix(data, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
             axis=1,
         )
+        self.batches = list(self.isotopes.columns)
 
     def _mix(self, data, mixing_ids, mixing_ratios):
         """Mix two or more isotopic compositions
