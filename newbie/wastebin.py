@@ -10,6 +10,7 @@ operating histories from nuclear waste compositions.
 
 import os
 import json
+import logging
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
@@ -203,7 +204,9 @@ class WasteBin():
             ## Otherwise models don't work
             self.load_models(ids)
             labels = self.labels
+            logging.debug(f'labels: {self.labels}')
             priors = self._make_priors(labels, limits, const)
+            logging.debug(f'priors: {priors}')
             distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
@@ -334,13 +337,16 @@ class WasteBinMixture(WasteBin):
         def prior_generator(par, lim, fall):
             for param in par:
                 if param in lim:
+                    logging.debug(f'Generating {param} prior from {lim[param]}.')
                     yield pm.Uniform(param, **lim[param])
                 else:
+                    logging.debug(f'Using {fall[param]} for {param}.')
                     yield fall[param]
 
         priors = []
         for b, l in labels.items():
             a, p = l[0], l[1:]
+            logging.debug(f'Adding priors for {b}')
             priors.extend(list(prior_generator([a], limits, fallback)))
             priors.extend(list(list(prior_generator(p, limits, fallback))))
         self.priors = priors
