@@ -9,6 +9,7 @@ the inference.
 """
 
 import os
+import re
 
 import pandas as pd
 
@@ -129,6 +130,8 @@ class SyntheticEvidence(Evidence):
 class Mixture(Evidence):
     """Isotopic composition of mixtures of batches"""
 
+    mixture_regex = re.compile('((\d+\.?\d*)([a-zA-Z0-9]+))\+?')
+
     def __init__(self, data, mixing_ids, mixing_ratios):
         """Create mixtures of isotopic compositions
 
@@ -186,6 +189,20 @@ class Mixture(Evidence):
         """
         data = pd.read_csv(filepath, index_col=0)
         return cls(data, mixing_ids, mixing_ratios)
+
+    def _get_components(self, id_):
+        """Split a mixture identifier into the names of the components"""
+        groups = self.mixture_regex.findall(id_)
+        mixing_ids = [g[2] for g in groups]
+        mixing_ratios = [float(g[1]) for g in groups]
+        return mixing_ids, mixing_ratios
+
+    def get_mixture_makeup(self):
+        """Get the mixing ids and the mixing ratios of each mixture"""
+        mixtures = {}
+        for b in self.batches:
+            mixtures[b] = self._get_components(b)
+        return mixtures
 
 
 class SyntheticMixture(Mixture, SyntheticEvidence):

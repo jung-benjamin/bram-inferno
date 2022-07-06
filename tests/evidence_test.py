@@ -75,6 +75,13 @@ def test_mixture():
     assert (mix2.isotopes == test_comb).all().all()
 
 
+def test_mixture_makeup():
+    """Test for the get_mixture_makeup method"""
+    mix = Mixture(dataframe(), [['A', 'B']], [[1., 1.]])
+    test = {'1.0A+1.0B': (['A', 'B'], [1., 1.])}
+    assert mix.get_mixture_makeup() == test
+
+
 def test_synthetic_mixture():
     """Test for the SyntheticMixture class"""
     synth = SyntheticMixture(
