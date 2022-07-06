@@ -279,6 +279,26 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
         key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
         return pd.Series(params, name=key)
 
+    def _is_param_from_batch(self, id_, param):
+        """Check if a parameter label belongs to a batch."""
+        id_regex = re.compile(f'(.+)_({id_})')
+        groups = id_regex.fullmatch(param)
+        if groups:
+            return True
+        else:
+            return False
+
+    def sort_params(self, id_):
+        """Associate parameter labels with their respective batch"""
+        batches = self._get_components(id_)[0]
+        params = list(self.parameters.loc[id_].dropna().index)
+        batch_params = {}
+        for b in batches:
+            batch_params[b] = [
+                n for n in params if self._is_param_from_batch(b, n)
+            ]
+        return batch_params
+
     def group_labels(self):
         """Group the parameter labels by their batch ids"""
         groups = {}

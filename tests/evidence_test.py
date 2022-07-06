@@ -97,6 +97,21 @@ def test_synthetic_mixture():
     assert (test1 == synth.true_parameters('1.0A+1.0B')).all()
 
 
+def test_sort_params():
+    """Test for the sort_params method"""
+    synth = SyntheticMixture(
+        dataframe(),
+        parameters(),
+        [['A', 'B'], ['A', 'C']],
+        [[1., 1.], [1., 1.]]
+    )
+    group = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'B': ['alpha_B', 'Burnup_B', 'Cooling_B']
+    }
+    assert synth.sort_params('1.0A+1.0B') == group
+
+
 def test_group_labels():
     """Test for the group_labels methdo of SyntheticMixture"""
     synth = SyntheticMixture(
