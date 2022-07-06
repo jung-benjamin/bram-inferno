@@ -75,6 +75,13 @@ def test_mixture():
     assert (mix2.isotopes == test_comb).all().all()
 
 
+def test_mixture_makeup():
+    """Test for the get_mixture_makeup method"""
+    mix = Mixture(dataframe(), [['A', 'B']], [[1., 1.]])
+    test = {'1.0A+1.0B': (['A', 'B'], [1., 1.])}
+    assert mix.get_mixture_makeup() == test
+
+
 def test_synthetic_mixture():
     """Test for the SyntheticMixture class"""
     synth = SyntheticMixture(
@@ -88,3 +95,38 @@ def test_synthetic_mixture():
              }
     test1 = pd.Series(test1, name='1.0A+1.0B')
     assert (test1 == synth.true_parameters('1.0A+1.0B')).all()
+
+
+def test_sort_params():
+    """Test for the sort_params method"""
+    synth = SyntheticMixture(
+        dataframe(),
+        parameters(),
+        [['A', 'B'], ['A', 'C']],
+        [[1., 1.], [1., 1.]]
+    )
+    group = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'B': ['alpha_B', 'Burnup_B', 'Cooling_B']
+    }
+    assert synth.sort_params('1.0A+1.0B') == group
+
+
+def test_group_labels():
+    """Test for the group_labels methdo of SyntheticMixture"""
+    synth = SyntheticMixture(
+        dataframe(),
+        parameters(),
+        [['A', 'B'], ['A', 'C']],
+        [[1., 1.], [1., 1.]]
+    )
+    group1 = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'B': ['alpha_B', 'Burnup_B', 'Cooling_B']
+    }
+    group2 = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'C': ['alpha_C', 'Burnup_C', 'Cooling_C']
+    }
+    assert synth.group_labels()['1.0A+1.0B'] == group1
+    assert synth.group_labels()['1.0A+1.0C'] == group2

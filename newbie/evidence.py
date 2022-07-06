@@ -9,6 +9,7 @@ the inference.
 """
 
 import os
+import re
 
 import pandas as pd
 
@@ -129,6 +130,8 @@ class SyntheticEvidence(Evidence):
 class Mixture(Evidence):
     """Isotopic composition of mixtures of batches"""
 
+    mixture_regex = re.compile('((\d+\.?\d*)([a-zA-Z0-9]+))\+?')
+
     def __init__(self, data, mixing_ids, mixing_ratios):
         """Create mixtures of isotopic compositions
 
@@ -187,6 +190,20 @@ class Mixture(Evidence):
         data = pd.read_csv(filepath, index_col=0)
         return cls(data, mixing_ids, mixing_ratios)
 
+    def _get_components(self, id_):
+        """Split a mixture identifier into the names of the components"""
+        groups = self.mixture_regex.findall(id_)
+        mixing_ids = [g[2] for g in groups]
+        mixing_ratios = [float(g[1]) for g in groups]
+        return mixing_ids, mixing_ratios
+
+    def get_mixture_makeup(self):
+        """Get the mixing ids and the mixing ratios of each mixture"""
+        mixtures = {}
+        for b in self.batches:
+            mixtures[b] = self._get_components(b)
+        return mixtures
+
 
 class SyntheticMixture(Mixture, SyntheticEvidence):
     """Mixtures of simulated evidence for Bayesian inference
@@ -220,6 +237,24 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             [self._mix_parameters(parameters, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
             axis=1
         ).T
+        self._get_mixtures(mixing_ids, mixing_ratios)
+
+    def _get_mixtures(self, mixing_ids, mixing_ratios):
+        """Associate mixture names with the names of components
+
+        Parameters
+        ----------
+        mixing_ids : list of list of str
+            Ids of the batches to mix. Must be contained in
+            the columns of `data`.
+        mixing_ratios : list of list of float
+            Ratios for mixing the batches respectively.
+        """
+        mixtures = {}
+        for id_, ratio in zip(mixing_ids, mixing_ratios):
+            key = '+'.join([f'{a}{n}' for a, n in zip(ratio, id_)])
+            mixtures[key] = mixing_ids
+        self.mixtures = mixtures
 
     def _mix_parameters(self, parameters, mixing_ids, mixing_ratios):
         """Mix parameters of two or more isotopic compositions
@@ -243,3 +278,30 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
                 params[f'{c}_{i}'] = col[i]
         key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
         return pd.Series(params, name=key)
+
+    def _is_param_from_batch(self, id_, param):
+        """Check if a parameter label belongs to a batch."""
+        id_regex = re.compile(f'(.+)_({id_})')
+        groups = id_regex.fullmatch(param)
+        if groups:
+            return True
+        else:
+            return False
+
+    def sort_params(self, id_):
+        """Associate parameter labels with their respective batch"""
+        batches = self._get_components(id_)[0]
+        params = list(self.parameters.loc[id_].dropna().index)
+        batch_params = {}
+        for b in batches:
+            batch_params[b] = [
+                n for n in params if self._is_param_from_batch(b, n)
+            ]
+        return batch_params
+
+    def group_labels(self):
+        """Group the parameter labels by their batch ids"""
+        groups = {}
+        for n in self.mixtures:
+            groups[n] = self.sort_params(n)
+        return groups
