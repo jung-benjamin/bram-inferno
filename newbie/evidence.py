@@ -302,10 +302,6 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
     def group_labels(self):
         """Group the parameter labels by their batch ids"""
         groups = {}
-        for k, components in self.mixtures.items():
-            p_list = list(self.parameters[k].dropna().index)
-            mxt_group = {}
-            for p in p_list:
-                for c in components:
-                    if c in p:
-                        mxt_group[c] =
+        for n in self.mixtures:
+            groups[n] = self.sort_params(n)
+        return groups

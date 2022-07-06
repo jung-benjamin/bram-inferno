@@ -120,8 +120,13 @@ def test_group_labels():
         [['A', 'B'], ['A', 'C']],
         [[1., 1.], [1., 1.]]
     )
-    group = {
-        'A': ['alpha_A':, 'Burnup_A', 'Cooling_A'],
-        'B': ['alpha_B':, 'Burnup_B', 'Cooling_B']
+    group1 = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'B': ['alpha_B', 'Burnup_B', 'Cooling_B']
     }
-    assert synth.group_labels()['1.0A+1.0B'] == group
+    group2 = {
+        'A': ['alpha_A', 'Burnup_A', 'Cooling_A'],
+        'C': ['alpha_C', 'Burnup_C', 'Cooling_C']
+    }
+    assert synth.group_labels()['1.0A+1.0B'] == group1
+    assert synth.group_labels()['1.0A+1.0C'] == group2
