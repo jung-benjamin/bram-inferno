@@ -69,6 +69,39 @@ class Surrogate(ABC):
         return posterior
 
 
+class Combination(Surrogate):
+    """Combine two surrogate models into one object"""
+
+    def __init__(self, surrogates):
+        """Set a list of composing models.
+
+        Parameters
+        ----------
+        surrogates : list of Surrogate
+            List of the surrogate models to be combined to
+            a new model.
+        """
+        self.surrogates = surrogates
+
+    @classmethod
+    def from_file(cls, *args):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        args : tuples (filepath, class)
+            Each tuple contains a filepath and a class. The
+            class needs to be able to use its from_file method
+            to instantiate itself from the respective filepath.
+
+        Returns:
+        k : Combination
+            Instance of the class.
+        """
+        surrogates = [c.from_file(f) for (f, c) in args]
+        return cls(surrogates)
+
+
 class ASQEKernelPredictor(Surrogate):
     """Posterior predictive of an ASQE kernel
 
