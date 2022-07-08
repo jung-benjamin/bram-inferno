@@ -13,6 +13,7 @@ bayesian inference with pymc.
 """
 
 import json
+import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -100,6 +101,36 @@ class Combination(Surrogate):
         """
         surrogates = [c.from_file(f) for (f, c) in args]
         return cls(surrogates)
+
+
+class LinearCombination(Combination):
+    """Create a linear combination of surrogate models
+
+    The predict method of all surrogates must take an
+    argument of the same length
+    """
+
+    def _split_arglist(self, arglist, chunk_len):
+        """Yield arguments of a given length from a list.
+
+        Each chunk is divided into its first element and
+        a list of the remaining arguments.
+        """
+        for i in range(0, len(arglist), chunk_len):
+            y = arglist[i:i+n]
+            yield y[0], y[1:]
+
+    def predict(self, x):
+        """Calculate the posterior predictive"""
+        num = len(self.surrogates)
+        chunk_len = len(x) / num
+        if not chunk_len.is_integer():
+            msg = ('Number of arguments in LinearCombination does not match'
+                    + 'the number of surrogate models.')
+            logging.warn(msg)
+        return sum(i * m.predict(j) for m, (i, j) in zip(self.surrogates, self._split_arglist(x, chunk_len)))
+        # return (p[0] * self.k1.predict([p[1], p[2]])
+        #         + p[3] * self.k2.predict([p[4], p[5]]))
 
 
 class ASQEKernelPredictor(Surrogate):
