@@ -13,6 +13,8 @@ bayesian inference with pymc.
 """
 
 import json
+from abc import ABC, abstractmethod
+
 import numpy as np
 import theano
 import theano.tensor as tt
@@ -24,7 +26,50 @@ KEYS = ['parameters', 'lambda_inv', 'alpha', 'xtrain', 'ytrain',
         'ytrafo', 'xtrafo',]
 KEYMAP = dict(zip(OLDKEYS, KEYS))
 
-class ASQEKernelPredictor():
+
+class Surrogate(ABC):
+    """A base class for surrogate models"""
+
+    @classmethod
+    @abstractmethod
+    def from_file(self,):
+        """Load the model from a file"""
+        pass
+
+    @abstractmethod
+    def predict(self, x):
+        """Calculate model predictions for a point."""
+        pass
+
+    def predict_many(self, x, eval=False):
+        """Calculate the posterior predictive for a vector x
+
+        Uses the theano.scan method for faster computation of
+        the loop.
+
+        Parameters
+        ----------
+        x : list of float
+            Values for which the posterior predictive is to be
+            evaluated.
+        eval : bool, optional (default is False)
+            If True, the eval() method of the theano object is
+            called before returning the predictions.
+            This significantly increases the runtime.
+
+        Returns
+        -------
+        posterior
+            Posterior predictive for each point in x.
+        """
+        xtt = tt.cast(x, 'float64')
+        posterior, updates = theano.scan(self.predict, xtt)
+        if eval:
+            return posterior.eval()
+        return posterior
+
+
+class ASQEKernelPredictor(Surrogate):
     """Posterior predictive of an ASQE kernel
 
     Works with pre-computed matrices to facilitate
