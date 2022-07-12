@@ -132,6 +132,19 @@ class LinearCombination(Combination):
         return sum(i * m.predict(j) for m, (i, j) in iter)
 
 
+class Quotient(Combination):
+    """Calcualte the quotient of two surrogate models"""
+
+    def predict(self, x1):
+        """Calculate the quotient of the posterior predictives
+
+        The first entry in the surrogates list is the numerator and
+        the second entry is the denominator. Any further entries are
+        ignored.
+        """
+        return self.surrogates[0].predict(x1) / self.surrogates[1].predict(x1)
+
+
 class ASQEKernelPredictor(Surrogate):
     """Posterior predictive of an ASQE kernel
 

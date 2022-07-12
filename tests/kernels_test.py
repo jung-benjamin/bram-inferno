@@ -94,3 +94,15 @@ def test_linear_combination(tmp_path):
     )
     k.predict([2, *[700, 5000], 3, *[600, 4000]])
     assert True
+
+def test_quotient(tmp_path):
+    """Test for the Quotien class"""
+    p1 = tmp_path / 't1.json'
+    p2 = tmp_path / 't2.json'
+    store_model(p1)
+    store_model(p2)
+    k = kernels.Quotient.from_file(
+        (p1, kernels.ASQEKernelPredictor), (p2, kernels.ASQEKernelPredictor)
+    )
+    k.predict([700, 5000])
+    assert True
