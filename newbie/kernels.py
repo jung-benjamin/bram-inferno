@@ -117,7 +117,7 @@ class LinearCombination(Combination):
         a list of the remaining arguments.
         """
         for i in range(0, len(arglist), chunk_len):
-            y = arglist[i:i+n]
+            y = arglist[i:i+chunk_len]
             yield y[0], y[1:]
 
     def predict(self, x):
@@ -128,9 +128,8 @@ class LinearCombination(Combination):
             msg = ('Number of arguments in LinearCombination does not match'
                     + 'the number of surrogate models.')
             logging.warn(msg)
-        return sum(i * m.predict(j) for m, (i, j) in zip(self.surrogates, self._split_arglist(x, chunk_len)))
-        # return (p[0] * self.k1.predict([p[1], p[2]])
-        #         + p[3] * self.k2.predict([p[4], p[5]]))
+        iter = zip(self.surrogates, self._split_arglist(x, int(chunk_len)))
+        return sum(i * m.predict(j) for m, (i, j) in iter)
 
 
 class ASQEKernelPredictor(Surrogate):
