@@ -13,6 +13,9 @@ bayesian inference with pymc.
 """
 
 import json
+import logging
+from abc import ABC, abstractmethod
+
 import numpy as np
 import theano
 import theano.tensor as tt
@@ -24,7 +27,125 @@ KEYS = ['parameters', 'lambda_inv', 'alpha', 'xtrain', 'ytrain',
         'ytrafo', 'xtrafo',]
 KEYMAP = dict(zip(OLDKEYS, KEYS))
 
-class ASQEKernelPredictor():
+
+class Surrogate(ABC):
+    """A base class for surrogate models"""
+
+    @classmethod
+    @abstractmethod
+    def from_file(self,):
+        """Load the model from a file"""
+        pass
+
+    @abstractmethod
+    def predict(self, x):
+        """Calculate model predictions for a point."""
+        pass
+
+    def predict_many(self, x, eval=False):
+        """Calculate the posterior predictive for a vector x
+
+        Uses the theano.scan method for faster computation of
+        the loop.
+
+        Parameters
+        ----------
+        x : list of float
+            Values for which the posterior predictive is to be
+            evaluated.
+        eval : bool, optional (default is False)
+            If True, the eval() method of the theano object is
+            called before returning the predictions.
+            This significantly increases the runtime.
+
+        Returns
+        -------
+        posterior
+            Posterior predictive for each point in x.
+        """
+        xtt = tt.cast(x, 'float64')
+        posterior, updates = theano.scan(self.predict, xtt)
+        if eval:
+            return posterior.eval()
+        return posterior
+
+
+class Combination(Surrogate):
+    """Combine two surrogate models into one object"""
+
+    def __init__(self, surrogates):
+        """Set a list of composing models.
+
+        Parameters
+        ----------
+        surrogates : list of Surrogate
+            List of the surrogate models to be combined to
+            a new model.
+        """
+        self.surrogates = surrogates
+
+    @classmethod
+    def from_file(cls, *args):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        args : tuples (filepath, class)
+            Each tuple contains a filepath and a class. The
+            class needs to be able to use its from_file method
+            to instantiate itself from the respective filepath.
+
+        Returns:
+        k : Combination
+            Instance of the class.
+        """
+        surrogates = [c.from_file(f) for (f, c) in args]
+        return cls(surrogates)
+
+
+class LinearCombination(Combination):
+    """Create a linear combination of surrogate models
+
+    The predict method of all surrogates must take an
+    argument of the same length
+    """
+
+    def _split_arglist(self, arglist, chunk_len):
+        """Yield arguments of a given length from a list.
+
+        Each chunk is divided into its first element and
+        a list of the remaining arguments.
+        """
+        for i in range(0, len(arglist), chunk_len):
+            y = arglist[i:i+chunk_len]
+            yield y[0], y[1:]
+
+    def predict(self, x):
+        """Calculate the posterior predictive"""
+        num = len(self.surrogates)
+        chunk_len = len(x) / num
+        if not chunk_len.is_integer():
+            msg = ('Number of arguments in LinearCombination does not match'
+                    + 'the number of surrogate models.')
+            logging.warn(msg)
+        iter = zip(self.surrogates, self._split_arglist(x, int(chunk_len)))
+        return sum(i * m.predict(j) for m, (i, j) in iter)
+
+
+class Quotient(Combination):
+    """Calcualte the quotient of two surrogate models"""
+
+    def predict(self, x1):
+        """Calculate the quotient of the posterior predictives
+
+        The first entry in the surrogates list is the numerator and
+        the second entry is the denominator. Any further entries are
+        ignored.
+        """
+        return self.surrogates[0].predict(x1) / self.surrogates[1].predict(x1)
+
+
+class ASQEKernelPredictor(Surrogate):
     """Posterior predictive of an ASQE kernel
 
     Works with pre-computed matrices to facilitate

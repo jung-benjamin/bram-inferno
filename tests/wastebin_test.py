@@ -181,4 +181,20 @@ def test_mixture_model_building(tmp_path):
         )
         dist = m2._make_distributions(['t1/t1', 't2/t2'], 0.1)
         m2._joint_probability(['t1/t1', 't2/t2',], dist)
+    m3 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p, 't2': p}, 'B': {'t1': p, 't2':p}},
+        labels=MXT_LABELS,
+        evidence=EVIDENCE,
+        combination='LinearCombination'
+    )
+    with pm.Model():
+        m3.load_models(['t1/t1', 't2/t2'])
+        m3._make_priors(
+            labels=MXT_LABELS,
+            limits=MXT_LIMITS,
+            fallback=None
+        )
+        dist = m3._make_distributions(['t1/t1', 't2/t2'], 0.1)
+        m3._joint_probability(['t1/t1', 't2/t2',], dist)
     assert True
