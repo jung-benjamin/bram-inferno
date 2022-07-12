@@ -312,25 +312,44 @@ class WasteBinMixture(WasteBin):
         m = self.combination
         if self.model_ratios:
             for i in ids:
-                args = list(chain(*[
-                    [self.filepaths[j][i], self.model_type[j]]
-                    for j in self.batches
-                ]))
+                if isinstance(m, kernels.PredictorSum2):
+                    args = list(chain(*[
+                        [self.filepaths[j][i], self.model_type[j]]
+                        for j in self.batches
+                    ]))
+                else:
+                    args = list(
+                        [self.filepaths[j][i], self.model_type[j]]
+                        for j in self.batches
+                    )
                 self.models[i] = m.from_file(*args)
         else:
             for r in ids:
                 i, j = r.split('/')
-                args_i = list(chain(*[
-                    [self.filepaths[b][i], self.model_type[b]]
-                    for b in self.batches
-                ]))
-                mi = m.from_file(*args_i)
-                args_j = list(chain(*[
-                    [self.filepaths[b][j], self.model_type[b]]
-                    for b in self.batches
-                ]))
-                mj = m.from_file(*args_j)
-                self.models[r] = kernels.PredictorQuotient(mi, mj)
+                if m is kernels.PredictorSum2:
+                    args_i = list(chain(*[
+                        [self.filepaths[b][i], self.model_type[b]]
+                        for b in self.batches
+                    ]))
+                    mi = m.from_file(*args_i)
+                    args_j = list(chain(*[
+                        [self.filepaths[b][j], self.model_type[b]]
+                        for b in self.batches
+                    ]))
+                    mj = m.from_file(*args_j)
+                    self.models[r] = kernels.PredictorQuotient(mi, mj)
+                else:
+                    args_i = list(
+                        [self.filepaths[b][i], self.model_type[b]]
+                        for b in self.batches
+                    )
+                    mi = m.from_file(*args_i)
+                    args_j = list(
+                        [self.filepaths[b][j], self.model_type[b]]
+                        for b in self.batches
+                    )
+                    mj = m.from_file(*args_j)
+                    self.models[r] = kernels.Quotient([mi, mj])
 
     def _make_priors(self, labels, limits, fallback):
         """Turn parameter limits into prior distribution"""
