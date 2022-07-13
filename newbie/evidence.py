@@ -10,6 +10,7 @@ the inference.
 
 import os
 import re
+import json
 
 import pandas as pd
 
@@ -213,7 +214,9 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
     analysis.
     """
 
-    def __init__(self, data, parameters, mixing_ids, mixing_ratios):
+    def __init__(
+        self, data, parameters, mixing_ids, mixing_ratios, rationame=False
+    ):
         """Create an instance of the class
 
         Parameters
@@ -234,10 +237,30 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
         """
         super().__init__(data, mixing_ids, mixing_ratios)
         self.parameters = pd.concat(
-            [self._mix_parameters(parameters, i, r) for i, r in zip(mixing_ids, mixing_ratios)],
+            [self._mix_parameters(parameters, i, r, rationame) for i, r in zip(mixing_ids, mixing_ratios)],
             axis=1
         ).T
         self._get_mixtures(mixing_ids, mixing_ratios)
+
+    @classmethod
+    def from_csv(cls, datapath, parameterpath, mixturepath, rationame=False):
+        """Create the class from a csv file
+
+        Parameters
+        ----------
+        datapath : str, path-like
+            File containing the isotopic composition data for at
+            least two batches of waste. Ids need to be in columns.
+        parameterpath : str, path-like
+            File containing true parameters of the batches.
+        mixturepath : str, path-like
+            Json file containing information how to mix the batches.
+        """
+        data = pd.read_csv(datapath, index_col=0)
+        parameters = pd.read_csv(parameterpath, index_col=0)
+        with open(mixturepath, 'r') as f:
+            mix = json.load(f)
+        return cls(data, parameters, rationame=rationame, **mix)
 
     def _get_mixtures(self, mixing_ids, mixing_ratios):
         """Associate mixture names with the names of components
@@ -256,7 +279,9 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             mixtures[key] = mixing_ids
         self.mixtures = mixtures
 
-    def _mix_parameters(self, parameters, mixing_ids, mixing_ratios):
+    def _mix_parameters(
+        self, parameters, mixing_ids, mixing_ratios, rationame=False
+    ):
         """Mix parameters of two or more isotopic compositions
 
         Parameters
@@ -270,12 +295,20 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             the columns of `data`.
         mixing_ratios : list of float
             Ratios for mixing the batches respectively.
+        rationame : bool (optional, default is False)
+            Set to True, if the mixing ratio should be included in the
+            label of each parameter.
         """
         params = {}
         for i, r in zip(mixing_ids, mixing_ratios):
-            params[f'alpha_{i}'] = r
-            for c, col in parameters.items():
-                params[f'{c}_{i}'] = col[i]
+            if rationame:
+                params[f'alpha_{r}{i}'] = r
+                for c, col in parameters.items():
+                    params[f'{c}_{r}{i}'] = col[i]
+            else:
+                params[f'alpha_{i}'] = r
+                for c, col in parameters.items():
+                    params[f'{c}_{i}'] = col[i]
         key = '+'.join([f'{a}{n}' for a, n in zip(mixing_ratios, mixing_ids)])
         return pd.Series(params, name=key)
 
