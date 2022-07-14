@@ -210,9 +210,17 @@ class WasteBin():
             distrib = self._make_distributions(ids, uncertainty)
             self._joint_probability(ids, distrib)
 
-            if 'step' in kwargs:
+            if 'step' in kwargs and 'target_accept' in kwargs:
+                step = kwargs['step']
+                kw = {'target_accept': kwargs.pop('target_accept')}
+                kwargs.update({'step': getattr(pm, step)(**kw)})
+            elif 'step' in kwargs:
                 step = kwargs['step']
                 kwargs.update({'step': getattr(pm, step)()})
+            elif 'target_accept' in kwargs:
+                kwargs.update(
+                    {'nuts': {'target_accept': kwargs.pop('target_accept')}}
+                )
 
             if load is None:
                 ## Silence the deprecation warning
