@@ -233,8 +233,11 @@ class WasteBin():
             if plot:
                 pm.plot_trace(trace, lines=list(limits.keys()))
 
-            summaries = {n: pm.summary(trace, n).T for n in limits}
-            return summaries, trace
+            if kwargs['return_inferencedata']:
+                return trace
+            else:
+                summaries = {n: pm.summary(trace, n).T for n in limits}
+                return summaries, trace
 
 
 class WasteBinMixture(WasteBin):
