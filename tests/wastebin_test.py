@@ -52,6 +52,15 @@ MXT_LIMITS = {
     'Downtime2': {'lower': 0, 'upper': 10000},
 }
 
+MXT_LIMITS_2 = {
+    'alpha1': 1,
+    'Uptime1': {'lower': 100, 'upper': 2000},
+    'Downtime1': {'lower': 0, 'upper': 10000},
+    'alpha2': 1.,
+    'Uptime2': {'lower': 100, 'upper': 2000},
+    'Downtime2': {'lower': 0, 'upper': 10000},
+}
+
 LABELS = ['Uptime', 'Downtime']
 
 MXT_LABELS={
@@ -65,6 +74,11 @@ def store_model(temp):
     """Store model_dict to a json file"""
     with open(temp, 'w') as f:
         json.dump(model_dict(), f)
+
+def store_limits(temp, d):
+    """Store limits dictionary to a json file"""
+    with open(temp, 'w') as f:
+        json.dump(d, f)
 
 def test_load_model(tmp_path):
     """Test for load_model method"""
@@ -197,4 +211,28 @@ def test_mixture_model_building(tmp_path):
         )
         dist = m3._make_distributions(['t1/t1', 't2/t2'], 0.1)
         m3._joint_probability(['t1/t1', 't2/t2',], dist)
+    assert True
+
+def test_limits_from_file(tmp_path):
+    """Test for building the model in WasteBinMixture"""
+    p = tmp_path / 't.json'
+    l = tmp_path / 'lim.json'
+    store_model(p)
+    store_limits(l, MXT_LIMITS_2)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p, 't2': p}, 'B': {'t1': p, 't2':p}},
+        labels=MXT_LABELS,
+        evidence=EVIDENCE
+    )
+    with pm.Model():
+        m2.load_models(['t1/t1', 't2/t2'])
+        bounds, const = m2._limits_from_file(l)
+        m2._make_priors(
+            labels=MXT_LABELS,
+            limits=bounds,
+            fallback=const
+        )
+        dist = m2._make_distributions(['t1/t1', 't2/t2'], 0.1)
+        m2._joint_probability(['t1/t1', 't2/t2',], dist)
     assert True

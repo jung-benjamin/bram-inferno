@@ -11,6 +11,8 @@ operating histories from nuclear waste compositions.
 import os
 import json
 import logging
+from pathlib import Path, PurePath
+
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
@@ -105,6 +107,18 @@ class WasteBin():
         self.priors = priors
         return priors
 
+    def _limits_from_file(self, filepath):
+        """Load limits for priors from a json file"""
+        with open(filepath, 'r') as f:
+            limits = json.load(f)
+        const = {}
+        for p, l in limits.copy().items():
+            if isinstance(l, dict):
+                pass
+            elif isinstance(l, (float, int)):
+                const[p] = limits.pop(p)
+        return limits, const
+
     def _make_distributions(self, ids, uncertainty):
         """Create a normal distribution for each isotpic ratio
 
@@ -168,7 +182,9 @@ class WasteBin():
         ids : list of str
             Identifiers of isotopes or isotopic ratios to be used in the
             inference.
-        limits : dict
+        limits : dict or path-like str
+            Dictionary of limits or a filepath to a json file
+            containing the dictionary.
             Keys are the labels of the parameters that are to be
             reconstructed. Each entry is a dict with keys 'lower'
             and 'upper', specifying the lower and upper limits of
@@ -205,6 +221,11 @@ class WasteBin():
             self.load_models(ids)
             labels = self.labels
             logging.debug(f'labels: {self.labels}')
+            if isinstance(limits, (str, Path, PurePath)):
+                bounds, constants = self._limits_from_file(limits)
+                limits = bounds
+                if const:
+                    const = constants.update(const)
             priors = self._make_priors(labels, limits, const)
             logging.debug(f'priors: {priors}')
             distrib = self._make_distributions(ids, uncertainty)
