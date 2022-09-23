@@ -275,7 +275,8 @@ class WasteBinMixture(WasteBin):
         labels, evidence,
         filepaths=None,
         model_ratios=False,
-        combination='PredictorSum2'
+        combination='PredictorSum2',
+        relative_mixing=True
         ):
         """Set model type and filepaths for loading models
 
@@ -304,10 +305,16 @@ class WasteBinMixture(WasteBin):
         combination : str (optional, default is PredictorSum2)
             Specify the class used for adding models to form
             the mixture.
+        relative_mixing : bool (optional, default is True)
+            Enforce inferring mixing ratios relative to the
+            first batch. This option overrides a any prior
+            given in a limits file or dictionary for the first
+            mixing ratio parameter.
         """
         super().__init__(model_type, labels, evidence, filepaths, model_ratios)
         self.batches = list(model_type.keys())
         self.combination = getattr(kernels, combination)
+        self.relative_mixing = relative_mixing
 
     def load_filepaths(self, ids, modelfile, prefix):
         """Load the filepath dict from a json file
@@ -384,7 +391,11 @@ class WasteBinMixture(WasteBin):
                     self.models[r] = kernels.Quotient([mi, mj])
 
     def _make_priors(self, labels, limits, fallback):
-        """Turn parameter limits into prior distribution"""
+        """Turn parameter limits into prior distribution
+
+        Overrides limits of first mixing ratio if self.relative_mixing
+        is set to True.
+        """
         def prior_generator(par, lim, fall):
             for param in par:
                 if param in lim:
@@ -395,10 +406,13 @@ class WasteBinMixture(WasteBin):
                     yield fall[param]
 
         priors = []
-        for b, l in labels.items():
+        for i, (b, l) in enumerate(labels.items()):
             a, p = l[0], l[1:]
             logging.debug(f'Adding priors for {b}')
-            priors.extend(list(prior_generator([a], limits, fallback)))
+            if self.relative_mixing and i == 0:
+                priors.extend(list(prior_generator([a], {}, {a: 1.})))
+            else:
+                priors.extend(list(prior_generator([a], limits, fallback)))
             priors.extend(list(list(prior_generator(p, limits, fallback))))
         self.priors = priors
         return priors
