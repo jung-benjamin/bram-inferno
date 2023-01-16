@@ -276,7 +276,7 @@ class WasteBinMixture(WasteBin):
         filepaths=None,
         model_ratios=False,
         combination='PredictorSum2',
-        relative_mixing=True
+        mixing_type='relative',
         ):
         """Set model type and filepaths for loading models
 
@@ -305,16 +305,19 @@ class WasteBinMixture(WasteBin):
         combination : str (optional, default is PredictorSum2)
             Specify the class used for adding models to form
             the mixture.
-        relative_mixing : bool (optional, default is True)
-            Enforce inferring mixing ratios relative to the
-            first batch. This option overrides a any prior
-            given in a limits file or dictionary for the first
+        mixing_type : str, (optional, default is 'relative')
+            Select between 'absolute', 'relative' or 'categorical'.
+            Set to 'relative' to enforce inferring mixing ratios 
+            relative to the first batch. This option overrides a any
+            prior given in a limits file or dictionary for the first
             mixing ratio parameter.
+            Set to 'categorical' to set mixing ratios as categorical
+            variables that are either 0 or 1.
         """
         super().__init__(model_type, labels, evidence, filepaths, model_ratios)
         self.batches = list(model_type.keys())
         self.combination = getattr(kernels, combination)
-        self.relative_mixing = relative_mixing
+        self.mixing_type = mixing_type
 
     def load_filepaths(self, ids, modelfile, prefix):
         """Load the filepath dict from a json file
@@ -393,14 +396,14 @@ class WasteBinMixture(WasteBin):
     def _make_priors(self, labels, limits, fallback):
         """Turn parameter limits into prior distribution
 
-        Overrides limits of first mixing ratio if self.relative_mixing
+        Overrides limits of first mixing ratio if self.mixing_type
         is set to True.
         """
-        def prior_generator(par, lim, fall):
+        def prior_generator(par, lim, fall, dist='Uniform'):
             for param in par:
                 if param in lim:
                     logging.debug(f'Generating {param} prior from {lim[param]}.')
-                    yield pm.Uniform(param, **lim[param])
+                    yield getattr(pm, dist)(param, **lim[param])
                 else:
                     logging.debug(f'Using {fall[param]} for {param}.')
                     yield fall[param]
@@ -409,8 +412,18 @@ class WasteBinMixture(WasteBin):
         for i, (b, l) in enumerate(labels.items()):
             a, p = l[0], l[1:]
             logging.debug(f'Adding priors for {b}')
-            if self.relative_mixing and i == 0:
+            if self.mixing_type == 'relative' and i == 0:
                 priors.extend(list(prior_generator([a], {}, {a: 1.})))
+            elif self.mixing_type == 'categorical':
+                if i == 0:
+                    base = list(prior_generator([a], limits, fallback, 'Categorical'))
+                    priors.extend(base)
+                elif i == 1:
+                    priors.extend([pm.Deterministic(a, (base[0] - 1) %2)])
+                elif i >= 2:
+                    msg = ('Categorical mixing ratios are not implemented for'
+                            + ' more than 2 components.')
+                    raise NotImplementedError(msg)
             else:
                 priors.extend(list(prior_generator([a], limits, fallback)))
             priors.extend(list(list(prior_generator(p, limits, fallback))))

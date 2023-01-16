@@ -61,6 +61,15 @@ MXT_LIMITS_2 = {
     'Downtime2': {'lower': 0, 'upper': 10000},
 }
 
+MXT_LIMITS_CATEGORICAL = {
+    'alpha1': {'p': [0.5, 0.5]},
+    'Uptime1': {'lower': 100, 'upper': 2000},
+    'Downtime1': {'lower': 0, 'upper': 10000},
+    'alpha2': 1.,
+    'Uptime2': {'lower': 100, 'upper': 2000},
+    'Downtime2': {'lower': 0, 'upper': 10000},
+}
+
 LABELS = ['Uptime', 'Downtime']
 
 MXT_LABELS={
@@ -172,6 +181,26 @@ def test_mixture_make_priors(tmp_path):
         m2._make_priors(
             labels=MXT_LABELS,
             limits=MXT_LIMITS,
+            fallback=None
+        )
+    assert True
+
+def test_mixture_categorical_priors(tmp_path):
+    """Test categorical prior creation in WasteBinMixture."""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor, 'B': kernels.ASQEKernelPredictor},
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}},
+        labels=MXT_LABELS,
+        evidence=None,
+        mixing_type='categorical'
+    )
+    with pm.Model():
+        m2.load_models(['t1/t1'])
+        m2._make_priors(
+            labels=MXT_LABELS,
+            limits=MXT_LIMITS_CATEGORICAL,
             fallback=None
         )
     assert True
