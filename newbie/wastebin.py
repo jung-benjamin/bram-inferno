@@ -409,6 +409,7 @@ class WasteBinMixture(WasteBin):
                     yield fall[param]
 
         priors = []
+        n_batches = len(labels)
         for i, (b, l) in enumerate(labels.items()):
             a, p = l[0], l[1:]
             logging.debug(f'Adding priors for {b}')
@@ -416,14 +417,13 @@ class WasteBinMixture(WasteBin):
                 priors.extend(list(prior_generator([a], {}, {a: 1.})))
             elif self.mixing_type == 'categorical':
                 if i == 0:
-                    base = list(prior_generator([a], limits, fallback, 'Categorical'))
-                    priors.extend(base)
-                elif i == 1:
-                    priors.extend([pm.Deterministic(a, (base[0] - 1) %2)])
-                elif i >= 2:
-                    msg = ('Categorical mixing ratios are not implemented for'
-                            + ' more than 2 components.')
-                    raise NotImplementedError(msg)
+                    d = {'cat': {'p': np.ones(n_batches)/n_batches}}
+                    base = list(prior_generator(['cat'], d, {}, 'Categorical'))
+                ## Two options to map i to 0 or 1
+                ## Option 2 is probably faster
+                # f = tt.round(tt.exp(-(base[0] - i)**2))
+                f = 0**((base[0] - i)**2)
+                priors.extend([pm.Deterministic(a, f)])
             else:
                 priors.extend(list(prior_generator([a], limits, fallback)))
             priors.extend(list(list(prior_generator(p, limits, fallback))))

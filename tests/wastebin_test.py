@@ -61,6 +61,18 @@ MXT_LIMITS_2 = {
     'Downtime2': {'lower': 0, 'upper': 10000},
 }
 
+MXT_LIMITS_3 = {
+    'alpha1': 1,
+    'Uptime1': {'lower': 100, 'upper': 2000},
+    'Downtime1': {'lower': 0, 'upper': 10000},
+    'alpha2': 1.,
+    'Uptime2': {'lower': 100, 'upper': 2000},
+    'Downtime2': {'lower': 0, 'upper': 10000},
+    'alpha3': 1.,
+    'Uptime3': {'lower': 100, 'upper': 2000},
+    'Downtime3': {'lower': 0, 'upper': 10000}
+}
+
 MXT_LIMITS_CATEGORICAL = {
     'alpha1': {'p': [0.5, 0.5]},
     'Uptime1': {'lower': 100, 'upper': 2000},
@@ -75,6 +87,12 @@ LABELS = ['Uptime', 'Downtime']
 MXT_LABELS={
     'A': ['alpha1', 'Uptime1', 'Downtime1',],
     'B': ['alpha2', 'Uptime2', 'Downtime2',],
+}
+
+MXT_LABELS_3 = {
+    'A': ['alpha1', 'Uptime1', 'Downtime1',],
+    'B': ['alpha2', 'Uptime2', 'Downtime2',],
+    'C': ['alpha3', 'Uptime3', 'Downtime3',]
 }
 
 EVIDENCE = {'t': 1., 't/t': 1., 't1/t1': 1., 't2/t2': 1.}
@@ -201,6 +219,25 @@ def test_mixture_categorical_priors(tmp_path):
         m2._make_priors(
             labels=MXT_LABELS,
             limits=MXT_LIMITS_CATEGORICAL,
+            fallback=None
+        )
+    assert True
+    m3 = wastebin.WasteBinMixture(
+        {'A': kernels.ASQEKernelPredictor,
+        'B': kernels.ASQEKernelPredictor,
+        'C': kernels.ASQEKernelPredictor
+        },
+        filepaths = {'A': {'t1': p}, 'B': {'t1': p}, 'C': {'t1': p}},
+        labels=MXT_LABELS_3,
+        evidence=None,
+        combination='LinearCombination',
+        mixing_type='categorical'
+    )
+    with pm.Model():
+        m3.load_models(['t1/t1'])
+        m3._make_priors(
+            labels=MXT_LABELS_3,
+            limits=MXT_LIMITS_3,
             fallback=None
         )
     assert True
