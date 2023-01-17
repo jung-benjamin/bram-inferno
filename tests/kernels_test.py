@@ -35,10 +35,53 @@ def model_dict():
     }
     return d
 
+def model_dict_2():
+    """Dictionary of model attributes with different dimensions."""
+    d = {
+        'Params': [0.48913262996451534, 0.040561695584638846, 0.166614138050176, 0.22683997611062934, 1e-10],
+        'LAMBDA': [
+            [24.65380171086119, 0.0, 0.0],
+            [0.0, 6.001891626380765, 0.0],
+            [0.0, 0.0, 4.408394045643447]
+        ],
+        'alpha_': [-7.19769972937485, 31.498281483019504, -44.86648129597428,
+                    14.01477959257388, 13.23626773606846, 7.437602099215877, 
+                    -4.790259976132744, -13.015160939190217, 5.172611481312183, 
+                    -32.82451940917667],
+        'x_train': [[30.0164794921875, 85.0579833984375, 2183.53271484375],
+                    [45.0164794921875, 150.0579833984375, 2683.53271484375],
+                    [52.5164794921875, 52.5579833984375, 2433.53271484375],
+                    [37.5164794921875, 117.5579833984375, 2933.53271484375],
+                    [41.2664794921875, 36.3079833984375, 2558.53271484375],
+                    [56.2664794921875, 101.3079833984375, 2058.53271484375],
+                    [48.7664794921875, 68.8079833984375, 2808.53271484375],
+                    [33.7664794921875, 133.8079833984375, 2308.53271484375],
+                    [35.6414794921875, 60.6829833984375, 2871.03271484375],
+                    [50.6414794921875, 125.6829833984375, 2371.03271484375]],
+        'y_train': [
+            4.28468e+18, 9.5619e+18, 1.3683e+19, 7.03437e+18, 8.62215e+18, 
+            1.44569e+19, 1.18291e+19, 5.33259e+18, 6.31171e+18, 1.17968e+19
+        ],
+        'y_trafo': [
+            'StandardNormalize', [1.00975247e+19, 3.778837987330014e+18]
+        ],
+        'x_trafo': [
+            'Normalize',
+            [59.8992919921875, 159.7064208984375, 2996.03271484375]
+        ],
+        'kernel': 'AnisotropicSquaredExponential'
+    }
+    return d
+
 def store_model(temp):
     """Store model_dict to a json file"""
     with open(temp, 'w') as f:
         json.dump(model_dict(), f)
+
+def store_model_2(temp):
+    """Store model_dict_2 to a json file"""
+    with open(temp, 'w') as f:
+        json.dump(model_dict_2(), f)
 
 def test_asqe_predictor_from_file(tmp_path):
     """Test for the from_file method of the ASQEKernelPredictor"""
@@ -88,11 +131,11 @@ def test_linear_combination(tmp_path):
     p1 = tmp_path / 't1.json'
     p2 = tmp_path / 't2.json'
     store_model(p1)
-    store_model(p2)
+    store_model_2(p2)
     k = kernels.LinearCombination.from_file(
         (p1, kernels.ASQEKernelPredictor), (p2, kernels.ASQEKernelPredictor)
     )
-    k.predict([2, *[700, 5000], 3, *[600, 4000]])
+    k.predict([2, *[700, 5000], 3, *[600, 4000, 200]])
     assert True
 
 def test_quotient(tmp_path):

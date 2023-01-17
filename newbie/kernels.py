@@ -36,6 +36,16 @@ class Surrogate(ABC):
     def from_file(self,):
         """Load the model from a file"""
         pass
+    
+    @property
+    def n_args(self):
+        """The number of arguments accepted by the model."""
+        return self._n_args
+
+    @n_args.setter
+    def n_args(self, x):
+        """Set the number of arguments."""
+        self._n_args = x
 
     @abstractmethod
     def predict(self, x):
@@ -104,31 +114,28 @@ class Combination(Surrogate):
 
 
 class LinearCombination(Combination):
-    """Create a linear combination of surrogate models
+    """Create a linear combination of surrogate models"""
 
-    The predict method of all surrogates must take an
-    argument of the same length
-    """
-
-    def _split_arglist(self, arglist, chunk_len):
+    def _split_arglist(self, arglist):
         """Yield arguments of a given length from a list.
 
         Each chunk is divided into its first element and
         a list of the remaining arguments.
         """
-        for i in range(0, len(arglist), chunk_len):
-            y = arglist[i:i+chunk_len]
+        num = len(self.surrogates)
+        logging.debug(f'Num. surrogates in linear combination: {num}.')
+        chunk_len = [x.n_args + 1 for x in self.surrogates] ## + 1 for mixing
+        logging.debug(f'Num. arguments of each surrogate: {chunk_len}.')
+        upper = list(np.cumsum(chunk_len))
+        lower = [0] + upper[:-1]
+        slices = map(slice, lower, upper)
+        for s in slices:
+            y = arglist[s]
             yield y[0], y[1:]
 
     def predict(self, x):
         """Calculate the posterior predictive"""
-        num = len(self.surrogates)
-        chunk_len = len(x) / num
-        if not chunk_len.is_integer():
-            msg = ('Number of arguments in LinearCombination does not match'
-                    + 'the number of surrogate models.')
-            logging.warn(msg)
-        iter = zip(self.surrogates, self._split_arglist(x, int(chunk_len)))
+        iter = zip(self.surrogates, self._split_arglist(x))
         return sum(i * m.predict(j) for m, (i, j) in iter)
 
 
@@ -171,6 +178,7 @@ class ASQEKernelPredictor(Surrogate):
             self.ytrafo = tt.cast(ytrafo[1], 'float64')
         else:
             self.ytrafo = tt.cast(ytrafo, 'float64')
+        self.n_args=len(parameters) - 2
 
     @classmethod
     def from_file(cls, filepath):
