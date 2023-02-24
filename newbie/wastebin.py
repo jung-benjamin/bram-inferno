@@ -9,6 +9,7 @@ operating histories from nuclear waste compositions.
 """
 
 import os
+import re
 import json
 import logging
 from pathlib import Path, PurePath
@@ -20,6 +21,14 @@ import theano.tensor as tt
 from itertools import chain
 
 from . import kernels
+
+
+ISOTOPE_REGEX = re.compile(r"""([A-Za-z]+)(-*)(\d+)(m|\*)*""")
+RATIO_REGEX = re.compile(r"""
+    ([A-Za-z]+)(-*)(\d+)(m|\*)*
+    /
+    ([A-Za-z]+)(-*)(\d+)(m|\*)*""",
+    re.X)
 
 
 class WasteBin():
@@ -320,18 +329,31 @@ class WasteBinMixture(WasteBin):
         self.mixing_type = mixing_type
 
     def load_filepaths(self, ids, modelfile, prefix):
-        """Load the filepath dict from a json file
-
-        This method can only be used if both all batches use
-        the same gp models.
-        """
+        """Load the filepath dict from a json file."""
+        if not self.model_ratios:
+            if all(map(RATIO_REGEX.fullmatch, ids)):
+                isolist = []
+                for r in ids:
+                    isolist.extend(r.split('/'))
+                ids = isolist
+            else:
+                pass
         filepaths = {}
-        with open(modelfile, 'r') as f:
-            paths = json.load(f)
+        if isinstance(modelfile, dict):
+            paths = {}
+            for b, mfile in modelfile.items():
+                with open(mfile, 'r') as f:
+                    paths[b] = json.load(f)
+        else:
+            with open(modelfile, 'r') as f:
+                paths = json.load(f)
         for b in self.batches:
             fp = {}
             for i in ids:
-                fp[i] = os.path.join(prefix, *paths[i])
+                if isinstance(modelfile, dict):
+                    fp[i] = os.path.join(prefix, *paths[b][i])
+                else:
+                    fp[i] = os.path.join(prefix, *paths[i])
             filepaths[b] = fp
         self.filepaths = filepaths
 
