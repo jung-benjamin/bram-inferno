@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-
 """PyMC models for nuclear waste
 
 Bayesian inference models for reconstructing reactor
@@ -22,13 +21,12 @@ from itertools import chain
 
 from . import kernels
 
-
 ISOTOPE_REGEX = re.compile(r"""([A-Za-z]+)(-*)(\d+)(m|\*)*""")
-RATIO_REGEX = re.compile(r"""
+RATIO_REGEX = re.compile(
+    r"""
     ([A-Za-z]+)(-*)(\d+)(m|\*)*
     /
-    ([A-Za-z]+)(-*)(\d+)(m|\*)*""",
-    re.X)
+    ([A-Za-z]+)(-*)(\d+)(m|\*)*""", re.X)
 
 
 class WasteBin():
@@ -38,9 +36,12 @@ class WasteBin():
     reconstructing operating history parameters of reactors.
     """
 
-    def __init__(
-        self, model_type, labels, evidence, filepaths=None, model_ratios=True
-        ):
+    def __init__(self,
+                 model_type,
+                 labels,
+                 evidence,
+                 filepaths=None,
+                 model_ratios=True):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -96,11 +97,8 @@ class WasteBin():
             for i in ids:
                 iso1, iso2 = i.split('/')
                 self.models[i] = kernels.PredictorQuotient.from_file(
-                    self.filepaths[iso1],
-                    self.model_type,
-                    self.filepaths[iso2],
-                    self.model_type
-                )
+                    self.filepaths[iso1], self.model_type,
+                    self.filepaths[iso2], self.model_type)
 
     def _make_priors(self, p, limits, fallback):
         """Turn parameter limits into prior distribution
@@ -140,9 +138,10 @@ class WasteBin():
         else:
             sigma = [self.evidence[i] * uncertainty[i] for i in ids]
         models = [self.models[i].predict(self.priors) for i in ids]
-        distrib = [pm.Normal(i, mu=m, sd=s, observed=o)
-                   for i, m, s, o in zip(ids, models, sigma, evidence)
-                  ]
+        distrib = [
+            pm.Normal(i, mu=m, sd=s, observed=o)
+            for i, m, s, o in zip(ids, models, sigma, evidence)
+        ]
         self.probabilities = distrib
         return distrib
 
@@ -164,8 +163,10 @@ class WasteBin():
         if len(ids) == 1:
             l = dists
         else:
+
             def joint(**kwargs):
                 return np.product([n for i, n in kwargs.items()])
+
             l = pm.DensityDist('L', joint, observed=dict(zip(ids, dists)))
         return l
 
@@ -178,7 +179,7 @@ class WasteBin():
         plot=True,
         load=None,
         **kwargs,
-        ):
+    ):
         """Run bayesian inference with pymc uniform priors
 
         Creates the Model context manager of pymc and runs bayesian
@@ -249,8 +250,9 @@ class WasteBin():
                 kwargs.update({'step': getattr(pm, step)()})
             elif 'target_accept' in kwargs:
                 kwargs.update(
-                    {'nuts': {'target_accept': kwargs.pop('target_accept')}}
-                )
+                    {'nuts': {
+                        'target_accept': kwargs.pop('target_accept')
+                    }})
 
             if load is None:
                 ## Silence the deprecation warning
@@ -281,12 +283,13 @@ class WasteBinMixture(WasteBin):
     def __init__(
         self,
         model_type,
-        labels, evidence,
+        labels,
+        evidence,
         filepaths=None,
         model_ratios=False,
         combination='PredictorSum2',
         mixing_type='relative',
-        ):
+    ):
         """Set model type and filepaths for loading models
 
         Parameters
@@ -377,41 +380,32 @@ class WasteBinMixture(WasteBin):
         if self.model_ratios:
             for i in ids:
                 if isinstance(m, kernels.PredictorSum2):
-                    args = list(chain(*[
-                        [self.filepaths[j][i], self.model_type[j]]
-                        for j in self.batches
-                    ]))
-                else:
                     args = list(
-                        [self.filepaths[j][i], self.model_type[j]]
-                        for j in self.batches
-                    )
+                        chain(*[[self.filepaths[j][i], self.model_type[j]]
+                                for j in self.batches]))
+                else:
+                    args = list([self.filepaths[j][i], self.model_type[j]]
+                                for j in self.batches)
                 self.models[i] = m.from_file(*args)
         else:
             for r in ids:
                 i, j = r.split('/')
                 if m is kernels.PredictorSum2:
-                    args_i = list(chain(*[
-                        [self.filepaths[b][i], self.model_type[b]]
-                        for b in self.batches
-                    ]))
+                    args_i = list(
+                        chain(*[[self.filepaths[b][i], self.model_type[b]]
+                                for b in self.batches]))
                     mi = m.from_file(*args_i)
-                    args_j = list(chain(*[
-                        [self.filepaths[b][j], self.model_type[b]]
-                        for b in self.batches
-                    ]))
+                    args_j = list(
+                        chain(*[[self.filepaths[b][j], self.model_type[b]]
+                                for b in self.batches]))
                     mj = m.from_file(*args_j)
                     self.models[r] = kernels.PredictorQuotient(mi, mj)
                 else:
-                    args_i = list(
-                        [self.filepaths[b][i], self.model_type[b]]
-                        for b in self.batches
-                    )
+                    args_i = list([self.filepaths[b][i], self.model_type[b]]
+                                  for b in self.batches)
                     mi = m.from_file(*args_i)
-                    args_j = list(
-                        [self.filepaths[b][j], self.model_type[b]]
-                        for b in self.batches
-                    )
+                    args_j = list([self.filepaths[b][j], self.model_type[b]]
+                                  for b in self.batches)
                     mj = m.from_file(*args_j)
                     self.models[r] = kernels.Quotient([mi, mj])
 
@@ -421,10 +415,12 @@ class WasteBinMixture(WasteBin):
         Overrides limits of first mixing ratio if self.mixing_type
         is set to True.
         """
+
         def prior_generator(par, lim, fall, dist='Uniform'):
             for param in par:
                 if param in lim:
-                    logging.debug(f'Generating {param} prior from {lim[param]}.')
+                    logging.debug(
+                        f'Generating {param} prior from {lim[param]}.')
                     yield getattr(pm, dist)(param, **lim[param])
                 else:
                     logging.debug(f'Using {fall[param]} for {param}.')
@@ -439,7 +435,7 @@ class WasteBinMixture(WasteBin):
                 priors.extend(list(prior_generator([a], {}, {a: 1.})))
             elif self.mixing_type == 'categorical':
                 if i == 0:
-                    d = {'cat': {'p': np.ones(n_batches)/n_batches}}
+                    d = {'cat': {'p': np.ones(n_batches) / n_batches}}
                     base = list(prior_generator(['cat'], d, {}, 'Categorical'))
                 ## Two options to map i to 0 or 1
                 ## Option 2 is probably faster
