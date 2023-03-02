@@ -318,13 +318,15 @@ class WasteBinMixture(WasteBin):
             Specify the class used for adding models to form
             the mixture.
         mixing_type : str, (optional, default is 'relative')
-            Select between 'absolute', 'relative' or 'categorical'.
-            Set to 'relative' to enforce inferring mixing ratios 
-            relative to the first batch. This option overrides a any
-            prior given in a limits file or dictionary for the first
-            mixing ratio parameter.
+            Select between 'absolute', 'relative', normalize or
+            'categorical'. Set to 'relative' to enforce inferring
+            mixing ratios relative to the first batch. This option 
+            overrides a any prior given in a limits file or dictionary
+            for the first mixing ratio parameter.
             Set to 'categorical' to set mixing ratios as categorical
             variables that are either 0 or 1.
+            Set to normalize to normalize the mixing ratio so that
+            their sum equals 1.
         """
         super().__init__(model_type, labels, evidence, filepaths, model_ratios)
         self.batches = list(model_type.keys())
@@ -428,6 +430,7 @@ class WasteBinMixture(WasteBin):
 
         priors = []
         n_batches = len(labels)
+        mixing_ids = []
         for i, (b, l) in enumerate(labels.items()):
             a, p = l[0], l[1:]
             logging.debug(f'Adding priors for {b}')
@@ -442,8 +445,21 @@ class WasteBinMixture(WasteBin):
                 # f = tt.round(tt.exp(-(base[0] - i)**2))
                 f = 0**((base[0] - i)**2)
                 priors.extend([pm.Deterministic(a, f)])
+            elif self.mixing_type == 'normalize':
+                if i == 0:
+                    mix_id_1 = a
+                else:
+                    uni = list(
+                        prior_generator([a], {a: {
+                            'lower': 0,
+                            'upper': 1
+                        }}, None))
+                    mixing_ids.extend(uni)
+                    priors.extend(uni)
             else:
                 priors.extend(list(prior_generator([a], limits, fallback)))
             priors.extend(list(list(prior_generator(p, limits, fallback))))
+        if self.mixing_type == 'normalize':
+            priors.insert(0, pm.Deterministic(mix_id_1, 1 - sum(mixing_ids)))
         self.priors = priors
         return priors

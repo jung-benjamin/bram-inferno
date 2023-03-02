@@ -381,6 +381,61 @@ def test_mixture_categorical_priors(tmp_path):
     assert True
 
 
+def test_mixture_normalize_priors(tmp_path):
+    """Test categorical prior creation in WasteBinMixture."""
+    p = tmp_path / 't.json'
+    store_model(p)
+    m2 = wastebin.WasteBinMixture(
+        {
+            'A': kernels.ASQEKernelPredictor,
+            'B': kernels.ASQEKernelPredictor
+        },
+        filepaths={
+            'A': {
+                't1': p
+            },
+            'B': {
+                't1': p
+            }
+        },
+        labels=MXT_LABELS,
+        evidence=None,
+        mixing_type='normalize')
+    with pm.Model():
+        m2.load_models(['t1/t1'])
+        m2._make_priors(labels=MXT_LABELS,
+                        limits=MXT_LIMITS_CATEGORICAL,
+                        fallback=None)
+    assert True
+    m3 = wastebin.WasteBinMixture(
+        {
+            'A': kernels.ASQEKernelPredictor,
+            'B': kernels.ASQEKernelPredictor,
+            'C': kernels.ASQEKernelPredictor
+        },
+        filepaths={
+            'A': {
+                't1': p
+            },
+            'B': {
+                't1': p
+            },
+            'C': {
+                't1': p
+            }
+        },
+        labels=MXT_LABELS_3,
+        evidence=None,
+        combination='LinearCombination',
+        mixing_type='normalize')
+    with pm.Model():
+        m3.load_models(['t1/t1'])
+        m3._make_priors(labels=MXT_LABELS_3,
+                        limits=MXT_LIMITS_3,
+                        fallback=None)
+    assert True
+
+
 def test_mixture_model_building(tmp_path):
     """Test for building the model in WasteBinMixture"""
     p = tmp_path / 't.json'
