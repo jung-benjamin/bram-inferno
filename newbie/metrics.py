@@ -9,11 +9,8 @@ Requirements
 
 import numpy as np
 import xarray as xr
-import arviz as az
-import pandas as pd
 
-from . import evidence
-from . import estimators
+from newbie import estimators
 
 
 class Metric:
@@ -44,3 +41,33 @@ class Metric:
         if unit:
             return np.linalg.norm(d) / len(d)
         return np.linalg.norm(d)
+
+
+class MetricSet:
+
+    def __init__(self,
+                 inference_data,
+                 truth,
+                 estimators=['peak', 'mean', 'mode']):
+        """Set inference data and truth objects."""
+        self.metrics = {
+            e: Metric(e, inference_data, truth)
+            for e in estimators
+        }
+        self.truth = truth
+
+    def calculate_distances(self, **kwargs):
+        """Calculate distances for selected estimators."""
+        m = [it.calculate_distance(**kwargs) for n, it in self.metrics.items()]
+        return xr.concat(m,
+                         dim='Metric').assign_coords(Metric=list(self.metrics))
+
+    def calculate_metrics(self, unit=True, **kwargs):
+        """Calculate metrics for selected estimators."""
+        dist = self.calculate_distances(**kwargs)
+        d = dist.to_array(dim='data_vars')
+        if unit:
+            metr = np.linalg.norm(d, axis=0) / d.shape[1]
+        else:
+            metr = np.linalg.norm(d, axis=1)
+        return dict(zip(self.metrics, metr))

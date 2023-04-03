@@ -47,3 +47,21 @@ def test_calculate_metric(rootdir):
         metric.calculate_metric()
         metric.calculate_metric(unit=True)
         assert True
+
+
+def test_metric_set_distances(rootdir):
+    """Test the MetricSet class."""
+    idata = load_idata(rootdir)
+    truth = load_truth(rootdir)
+    ms = metrics.MetricSet(idata, truth)
+    ms.calculate_distances()
+    assert True
+
+
+def test_metric_set_metrics(rootdir):
+    """Test the MetricSet class."""
+    idata = load_idata(rootdir)
+    truth = load_truth(rootdir)
+    ms = metrics.MetricSet(idata, truth)
+    ms.calculate_metrics()
+    assert True
