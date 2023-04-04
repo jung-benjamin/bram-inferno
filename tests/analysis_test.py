@@ -3,8 +3,8 @@
 
 from pathlib import Path
 
-import pandas as pd
 import arviz as az
+import pandas as pd
 import xarray as xr
 
 from newbie import analysis
@@ -26,7 +26,7 @@ def load_truth(rootdir, key):
 
 def posterior_analysis_test(rootdir):
     """Test for the posterior analysis class."""
-    keys = ['c64p_0704_059_yb4p_0871', 'c64p_0713_110_yb4p_0766']
+    keys = ['data', 'data_2']
     idata = [
         load_idata(rootdir, 'inference_data.json'),
         load_idata(rootdir, 'inference_data_2.json')
@@ -40,12 +40,12 @@ def posterior_analysis_test(rootdir):
 
 def posterior_analysis_from_files_test(rootdir):
     """Test for the from_filepaths classmethod of PosteriorAnalysis."""
-    keys = ['c64p_0704_059_yb4p_0871', 'c64p_0713_110_yb4p_0766']
+    keys = ['data', 'data_2']
     truth = Path(rootdir, 'tests', 'test-data', 'synthetic_truth.csv')
     idata = {
-        'c64p_0704_059_yb4p_0871':
+        'data':
         Path(rootdir, 'tests', 'test-data', 'inference_data.json'),
-        'c64p_0713_110_yb4p_0766':
+        'data_2':
         Path(rootdir, 'tests', 'test-data', 'inference_data_2.json')
     }
     pa = analysis.PosteriorAnalysis.from_filepaths(idata, truth, keys)

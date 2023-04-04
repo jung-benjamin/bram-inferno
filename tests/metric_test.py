@@ -7,8 +7,7 @@ import arviz as az
 import pandas as pd
 import xarray as xr
 
-from newbie import estimators
-from newbie import metrics
+from newbie import estimators, metrics
 
 
 def load_idata(rootdir):
@@ -21,7 +20,7 @@ def load_truth(rootdir):
     """Load the true parameter values to an xarray dataset."""
     df = pd.read_csv(Path(rootdir, 'test-data', 'synthetic_truth.csv'),
                      index_col=0)
-    df = df.loc['c64p_0704_059_yb4p_0871'].to_dict()
+    df = df.loc['data'].to_dict()
     return xr.Dataset(df)
 
 
