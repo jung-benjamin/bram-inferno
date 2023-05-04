@@ -14,8 +14,8 @@ This module uses the scipy style guide for docstrings.
 """
 
 import arviz as az
-import xarray as xr
 import numpy as np
+import xarray as xr
 # import scipy.signal
 from scipy import signal, stats
 
@@ -89,6 +89,10 @@ class PeakEstimator(Estimator):
                                                  height=height,
                                                  wlen=wlen,
                                                  **kwargs)
+        if len(peak_idx) == 0:
+            msg = f'Number of peaks is {len(peak_idx)}'
+            print('Warning:', msg)
+            return
         if not wlen:
             wlen = len(samples) / len(peak_idx)
         peak_prominence = signal.peak_prominences(probs, peak_idx, wlen=wlen)
@@ -107,7 +111,10 @@ class PeakEstimator(Estimator):
         as a characteristic of the posterior.
         """
         peaks = self._assess_peaks(posterior, **kwargs)
-        return peaks['loc'][np.argmax(peaks[kind])]
+        try:
+            return peaks['loc'][np.argmax(peaks[kind])]
+        except TypeError:
+            return np.inf
 
     def calculate_estimator(self, kind='height', **kwargs):
         estimators = {
