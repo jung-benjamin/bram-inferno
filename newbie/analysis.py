@@ -28,7 +28,7 @@ class PosteriorAnalysis:
         self.analyses = {}
         for i, d, t in args:
             self.analyses[i] = metrics.MetricSet(d, t, estimators)
-        self.logger = self.get_logger(loglevel=loglevel)
+        self.logger.setLevel(getattr(logging, loglevel.upper()))
 
     @classmethod
     def get_logger(cls, loglevel='INFO'):
@@ -39,6 +39,10 @@ class PosteriorAnalysis:
         ch.setLevel(getattr(logging, loglevel.upper()))
         log.addHandler(ch)
         return log
+
+    @property
+    def logger(self):
+        return logging.getLogger(self.__class__.__name__)
 
     @classmethod
     def from_filepaths(cls,
@@ -53,6 +57,7 @@ class PosteriorAnalysis:
             ids = list(truth.index)
         log.info('Creating PosteriorAnalysis...')
         log.info(f'IDs: {ids}')
+        log.info(f'Number of inference files: {len(inference_files)}')
         idata = {}
         if isinstance(inference_files, dict):
             for i in ids:
@@ -68,13 +73,18 @@ class PosteriorAnalysis:
                         idata[i] = az.from_json(f)
         tr = [xr.Dataset(truth.loc[n].to_dict()) for n in idata]
         args = list(zip(*zip(*idata.items()), tr))
+        log.debug(f'Number of init *args: {len(args)}')
         return cls(*args, loglevel=loglevel)
 
     def calculate_distances(self, **kwargs):
         """Calculate distances between estimators and true parameters."""
+        self.logger.info(
+            f'Calculating distances for {len(self.analyses)} items.')
         dist = []
         for n, it in self.analyses.items():
+            self.logger.info(f'ID: {n}...')
             d = it.calculate_distances(**kwargs)
             dist.append(d)
+            self.logger.info(f'Done.')
         ds = xr.concat(dist, dim='ID')
         return ds.assign_coords(ID=list(self.analyses))
