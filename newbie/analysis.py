@@ -240,14 +240,14 @@ class ConfusionAnalyzer:
         self.confusion_matrix = np.array(matrix)
         return self.confusion_matrix
 
-    def plot_confusion_matrix(self, show=False):
+    def plot_confusion_matrix(self, show=False, save=None):
         """Plot the confusion matrix"""
         try:
             matrix = self.confusion_matrix
         except AttributeError:
             matrix = self.calc_confusion_matrix()
         labels = self.matrix_labels
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(constrained_layout=True)
         im = ax.imshow(matrix, cmap='Blues')
 
         # Add colorbar
@@ -269,16 +269,19 @@ class ConfusionAnalyzer:
         # Loop over data dimensions and create text annotations
         for i in range(len(labels)):
             for j in range(len(labels)):
+                text_color = "w" if matrix[i, j] > np.max(matrix) / 2 else "k"
                 text = ax.text(j,
                                i,
                                matrix[i][j],
                                ha="center",
                                va="center",
-                               color="w")
+                               color=text_color)
 
         # Set title and labels
         ax.set_title("Confusion Matrix")
         ax.set_xlabel("Predicted Labels")
         ax.set_ylabel("True Labels")
+        if save:
+            plt.savefig(save)
         if show:
             plt.show()
