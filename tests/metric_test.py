@@ -29,7 +29,17 @@ def test_calculate_distance(rootdir):
     idata = load_idata(rootdir)
     truth = load_truth(rootdir)
     for m in ['peak', 'mean', 'mode']:
-        metric = metrics.Metric('peak', idata, truth)
+        metric = metrics.Metric(m, idata, truth)
+        metric.calculate_distance()
+        metric.calculate_distance(normalize='max')
+        metric.calculate_distance(normalize='truth')
+        metric.calculate_distance(absolute=True)
+        assert True
+    for m in ['peak', 'mean', 'mode']:
+        metric = metrics.Metric(m,
+                                idata,
+                                truth,
+                                data_vars=['burnupA', 'powerA'])
         metric.calculate_distance()
         metric.calculate_distance(normalize='max')
         metric.calculate_distance(normalize='truth')
