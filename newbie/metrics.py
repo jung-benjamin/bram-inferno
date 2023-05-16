@@ -15,22 +15,32 @@ from newbie import estimators
 
 class Metric:
 
-    def __init__(self, estimator, inference_data, truth) -> None:
+    def __init__(self, estimator, inference_data, truth, data_vars=None):
         self.estimator = estimators.EstimatorFactory.create_estimator(
             estimator, inference_data)
-        self.truth = truth
+        self.data_vars = data_vars
+        if self.data_vars:
+            self.truth = truth[self.data_vars]
+        else:
+            self.truth = truth
 
     def calculate_distance(self, normalize=None, absolute=False, **kwargs):
         """Calculate distance between estimator and truth."""
-        est = self.estimator.calculate_estimator(**kwargs)
+        est = self.estimator.calculate_estimator(self.data_vars, **kwargs)
         dist = self.truth - est
         if absolute:
             dist = np.abs(dist)
         if normalize == 'truth':
             dist /= self.truth
         elif normalize == 'max':
-            range = (self.estimator.inference_data.posterior.max() -
-                     self.estimator.inference_data.posterior.min())
+            if self.data_vars:
+                range = (self.estimator.inference_data['posterior'][
+                    self.data_vars].max() -
+                         self.estimator.inference_data['posterior'][
+                             self.data_vars].min())
+            else:
+                range = (self.estimator.inference_data.posterior.max() -
+                         self.estimator.inference_data.posterior.min())
             dist /= np.abs(range)
         return dist
 
@@ -48,10 +58,11 @@ class MetricSet:
     def __init__(self,
                  inference_data,
                  truth,
-                 estimators=['peak', 'mean', 'mode']):
+                 estimators=['peak', 'mean', 'mode'],
+                 data_vars=None):
         """Set inference data and truth objects."""
         self.metrics = {
-            e: Metric(e, inference_data, truth)
+            e: Metric(e, inference_data, truth, data_vars)
             for e in estimators
         }
         self.truth = truth
