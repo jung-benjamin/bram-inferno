@@ -20,6 +20,8 @@ def test_mode_estimator(rootdir):
     me = estimators.EstimatorFactory.create_estimator('mode', data)
     mode = me.calculate_estimator()
     assert True
+    mode2 = me.calculate_estimator('burnupA')
+    assert True
 
 
 def test_mean_estimator(rootdir):
@@ -28,6 +30,8 @@ def test_mean_estimator(rootdir):
     me = estimators.EstimatorFactory.create_estimator('mean', data)
     mean = me.calculate_estimator()
     assert True
+    mean2 = me.calculate_estimator('burnupA')
+    assert True
 
 
 def test_peak_estimator(rootdir):
@@ -35,4 +39,6 @@ def test_peak_estimator(rootdir):
     data = load_idata(rootdir)
     me = estimators.EstimatorFactory.create_estimator('peak', data)
     peak = me.calculate_estimator()
+    assert True
+    peak2 = me.calculate_estimator('burnupA')
     assert True

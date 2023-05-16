@@ -16,7 +16,6 @@ This module uses the scipy style guide for docstrings.
 import arviz as az
 import numpy as np
 import xarray as xr
-# import scipy.signal
 from scipy import signal, stats
 
 
@@ -25,30 +24,41 @@ class Estimator:
     def __init__(self, inference_data):
         self.inference_data = inference_data
 
-    def calculate_estimator(self):
-        raise NotImplementedError(
-            "Subclasses of Estimator must implement calculate_estimator() method"
-        )
+    def _estimator_func(self, posterior, **kwargs):
+        """Warpper for functions implemented by subclasses."""
+        msg = 'Subclasses of Estimator must implement _estimator_func().'
+        raise NotImplementedError(msg)
+
+    def calculate_estimator(self, data_vars=None, **kwargs):
+        """Calculate the estimator for posteriors in the inference data."""
+        estimator = {}
+        if isinstance(data_vars, str):
+            pos = self.inference_data['posterior'][data_vars]
+            estimator[data_vars] = self._estimator_func(pos, **kwargs)
+        elif data_vars:
+            for v in data_vars:
+                pos = self.inference_data['posterior'][v]
+                estimator[v] = self._estimator_func(pos, **kwargs)
+        else:
+            for v, it in self.inference_data.posterior.items():
+                estimator[v] = self._estimator_func(it, **kwargs)
+        self.estimator = xr.Dataset(estimator)
+        return self.estimator
 
 
 class ModeEstimator(Estimator):
 
-    def mode(self, x, **kwargs):
+    def _estimator_func(self, posterior, **kwargs):
+        """Calculate the mode of the data samples."""
         pe = az.plots.plot_utils.calculate_point_estimate
-        return pe('mode', np.concatenate(x), **kwargs)
-
-    def calculate_estimator(self, **kwargs):
-        estimator = {
-            n: self.mode(it, **kwargs)
-            for n, it in self.inference_data.posterior.items()
-        }
-        return xr.Dataset(estimator)
+        return pe('mode', np.concatenate(posterior), **kwargs)
 
 
 class MeanEstimator(Estimator):
 
-    def calculate_estimator(self):
-        return self.inference_data.posterior.mean()
+    def _estimator_func(self, posterior, **kwargs):
+        """Calculate the mean of the data samples."""
+        return posterior.mean()
 
 
 class PeakEstimator(Estimator):
@@ -104,7 +114,7 @@ class PeakEstimator(Estimator):
         }
         return peaks
 
-    def peak(self, posterior, kind='height', **kwargs):
+    def _estimator_func(self, posterior, kind='height', **kwargs):
         """Calculate the peak estimator
         
         Returns either the highest or the most prominent peak
@@ -115,13 +125,6 @@ class PeakEstimator(Estimator):
             return peaks['loc'][np.argmax(peaks[kind])]
         except TypeError:
             return np.inf
-
-    def calculate_estimator(self, kind='height', **kwargs):
-        estimators = {
-            n: self.peak(it)
-            for n, it in self.inference_data.posterior.items()
-        }
-        return xr.Dataset(estimators)
 
 
 class EstimatorFactory:
