@@ -7,6 +7,8 @@ Requirements
 - Different handling of categorical inference of reactor type
 """
 
+import logging
+
 import numpy as np
 import xarray as xr
 
@@ -23,10 +25,40 @@ class Metric:
             self.truth = truth[self.data_vars]
         else:
             self.truth = truth
+        self.logger.debug(f'Truth vars: {list(self.truth)}')
+        self.logger.debug(
+            f'Idata vars: {list(inference_data["posterior"].data_vars)}')
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
 
     def calculate_distance(self, normalize=None, absolute=False, **kwargs):
         """Calculate distance between estimator and truth."""
         est = self.estimator.calculate_estimator(self.data_vars, **kwargs)
+        self.logger.debug(f'Estimator shape: {est.variables}')
+        self.logger.debug(f'Truth shape: {self.truth}')
         dist = self.truth - est
         if absolute:
             dist = np.abs(dist)
@@ -66,6 +98,31 @@ class MetricSet:
             for e in estimators
         }
         self.truth = truth
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
 
     def calculate_distances(self, **kwargs):
         """Calculate distances for selected estimators."""
