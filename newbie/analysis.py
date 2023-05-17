@@ -285,3 +285,88 @@ class ConfusionAnalyzer:
             plt.savefig(save)
         if show:
             plt.show()
+
+
+class ClassificationAnalysis(ConfusionAnalyzer):
+    """Analyze the results of inference with classification"""
+
+    # def __init__(self,
+    #              *args,
+    #              estimators=['peak', 'mean', 'mode'],
+    #              loglevel='INFO'):
+    #     """Instantiate the class."""
+    #     super().__init__(*args, estimators=estimators, loglevel=loglevel)
+    #     self.class_var = None
+    #     self.reactor_map = {}
+
+    def reactor_map_from_mixing(self, var_names=None):
+        """Determine the reactor map from the mixing ratio variables."""
+        if not var_names:
+            alpha_variables = []
+            for i, it in self.idata.items():
+                alpha_variables.extend(
+                    [v for v in it['posterior'].data_vars if 'alpha' in v])
+            alpha_variables = sorted(set(alpha_variables))
+        else:
+            alpha_variables = sorted(set(var_names))
+        # To-Do: find neater way to access the reactor ID
+        self.reactor_map = {v[-1]: i for i, v in enumerate(alpha_variables)}
+        return self.reactor_map
+
+    def get_class_posteriors(self, varname=None):
+        """Access only the posteriors from each class"""
+        if not varname:
+            varname = self.class_var
+        self._calc_class_posteriors(varname=varname)
+        self.get_class_results()
+        for n, it in self.class_results.items():
+            if it == 'inconclusive':
+                self.idata.pop(n)
+                continue
+            pos = self.idata[n].posterior
+            self.logger.debug(f'Data vars {n}: {list(pos.data_vars)}')
+            drop = [v for v in pos.data_vars if it not in v]
+            drop += [f'alpha{it}']
+            self.logger.debug(f'Drop variables {n}: {drop}')
+            self.idata[n].posterior = pos.drop_vars(drop)
+        return {n: it.posterior for n, it in self.idata.items()}
+
+    def load_truth(self, filepath):
+        """Load the truth dataframe from the file"""
+        self.truth = pd.read_csv(filepath, index_col=0)
+        return self.truth
+
+    def calc_class_metrics(self,
+                           truthfile,
+                           estimators=['mean', 'mode', 'peak'],
+                           varname=None):
+        """Calculate metrics for the posteriors of the classification result"""
+        self.get_class_posteriors(varname=varname)
+        truth = self.load_truth(truthfile)
+        self.analyses = {}
+        for i, d in self.idata.items():
+            id_ = '_'.join(list(self.parse_name(i).values()))
+            tr = truth.loc[id_]
+            tr.rename({n: f'{n}{self.class_results[i]}'
+                       for n in tr.index},
+                      inplace=True)
+            tr = xr.Dataset(tr.to_dict())
+            self.logger.debug(f'Truth ids: {list(tr)}')
+            self.logger.debug(f'Idata ids: {list(d["posterior"].data_vars)}')
+            self.analyses[i] = metrics.MetricSet(d, tr, estimators)
+
+    def calculate_distances(self, **kwargs):
+        """Calculate distances between estimators and true parameters."""
+        self.logger.info(
+            f'Calculating distances for {len(self.analyses)} items.')
+        dist = []
+        for n, it in self.analyses.items():
+            self.logger.info(f'ID: {n}...')
+            d = it.calculate_distances(**kwargs)
+            # To-Do: find a less hard-coded way to rename the data variables
+            d = d.rename_vars({n: n[:-1] for n in d.data_vars})
+            self.logger.debug(f'Distance variables: {list(d.data_vars)}')
+            dist.append(d)
+            self.logger.info(f'Done.')
+        ds = xr.concat(dist, dim='ID')
+        return ds.assign_coords(ID=list(self.analyses))
