@@ -1,0 +1,135 @@
+#! /usr/bin/env python3
+"""Classes for managing inference data
+
+Mostly contains subclasses of arviz.InferenceData.
+"""
+
+import logging
+from collections import Counter, defaultdict
+
+import arviz as az
+
+
+class ClassificationResults(az.InferenceData):
+    """Results of Bayesian Inference for Reactor Type Classification"""
+
+    def __init__(self, class_var, **kwargs):
+        """Instantiate the classification results class."""
+        super().__init__(**kwargs)
+        self.reactor_map = {}
+        self.class_var = class_var
+        self._batch_map = {}
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
+    @classmethod
+    def from_json(cls, class_var, filepath):
+        """Read classification inference data from a json file."""
+        data = az.from_json(filepath)
+        instance = cls(class_var)
+        instance.__dict__.update(data.__dict__.copy())
+        return instance
+
+    @classmethod
+    def from_inferencedata(cls, class_var, inference_data):
+        """Create class from a plain inference data object."""
+        instance = cls(class_var)
+        instance.__dict__.update(inference_data.__dict__.copy())
+        return instance
+
+    @property
+    def batch_map(self):
+        """Return a mapping of batch IDs to sampled classes (integers)"""
+        if not self._batch_map:
+            return self._batch_map_from_mixing()
+        else:
+            return self._batch_map
+
+    @property
+    def inv_batch_map(self):
+        """Invert map of batch IDs to sampled classes."""
+        return {it: n for n, it in self.batch_map.items()}
+
+    @property
+    def reactor_map(self):
+        """Return mapping of reactor name to number"""
+        return self._reactor_map
+
+    @reactor_map.setter
+    def reactor_map(self, d):
+        """Set the reactor map."""
+        self._reactor_map = d
+
+    @property
+    def inv_reactor_map(self):
+        """Mapping of number to reactor name"""
+        return {it: n for n, it in self.reactor_map.items()}
+
+    def _batch_map_from_mixing(self):
+        """Map batch IDs to integers"""
+        alpha_variables = sorted(
+            set([v for v in self['posterior'].data_vars if 'alpha' in v]))
+        # To-Do: find neater way to access the reactor ID
+        self._batch_map = {v[-1]: i for i, v in enumerate(alpha_variables)}
+        return self._batch_map
+
+    def _calc_class_posterior(self, class_var=None):
+        """Translate class posteriors."""
+        if not class_var:
+            class_var = self.class_var
+        if self.reactor_map:
+            use_map = self.inv_reactor_map
+        else:
+            use_map = self.inv_batch_map
+        self.class_posterior = [
+            use_map[i] for i in self['posterior'][class_var].values.flatten()
+        ]
+        return self.class_posterior
+
+    def get_class_results(self, class_var=None, threshold=0.7):
+        """Determine results of the classification."""
+        if not class_var:
+            class_var = self.class_var
+        self._calc_class_posterior(class_var=class_var)
+        counts = Counter(self.class_posterior)
+        best = counts.most_common(1)
+        if not ((best[0][1] / sum(counts.values())) > threshold):
+            results = 'inconclusive'
+        else:
+            results = best[0][0]
+        self.class_results = results
+        return self.class_results
+
+    def sort_posteriors_by_batch(self):
+        """Sort posterior chains by their batch ID."""
+        self.batch_posteriors = defaultdict(dict)
+        for n in self.batch_map:
+            for v, it in self['posterior'].data_vars.items():
+                if 'alpha' in v:
+                    pass
+                elif v[-1] == n:
+                    self.batch_posteriors[n][v] = it
+        return self.batch_posteriors
