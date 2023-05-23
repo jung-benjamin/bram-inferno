@@ -241,3 +241,31 @@ class PosteriorPlot:
         else:
             plt.close()
 
+
+class ClassificationPlot(PosteriorPlot):
+    """Plot results of classification inference."""
+
+    def __init__(self, inference_data, class_var, **kwargs):
+        """Instantiate the class."""
+        super().__init__(
+            ClassificationResults.from_inferencedata(
+                class_var=class_var, inference_data=inference_data), **kwargs)
+        self.inference_results.get_class_results()
+
+    def histplot_classification(self, show=True, save=None):
+        """Plot classification variable in a histogram."""
+        sns.histplot(self.inference_results.class_posterior)
+        if save:
+            plt.savefig(save)
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+    def plot_predicted_parameters(self, **kwargs):
+        """Plot only the predicted parameters"""
+        self.inference_results.sort_posteriors_by_batch()
+        var_names = list(self.inference_results.batch_posteriors[
+            self.inference_results.class_results])
+        self.logger.debug(f'Predicted parameter names: {var_names}')
+        self.plot(var_names=var_names, **kwargs)
