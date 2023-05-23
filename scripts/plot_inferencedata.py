@@ -10,7 +10,7 @@ import arviz as az
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from newbie.plot_utils import PosteriorPlot
+from newbie.plot_utils import ClassificationPlot, PosteriorPlot
 
 PARAM_REGEX = re.compile('([a-zA-Z])([a-z]+)(\d|[A-Z]?)')
 
@@ -37,6 +37,10 @@ def argparser():
     parser.add_argument('-e', '--estimators', help=estimators, nargs='*')
     save = 'Filepath for saving the plot.'
     parser.add_argument('-s', '--save', help=save, type=Path)
+    plot_classes = 'Set to true to plot the classification results.'
+    parser.add_argument('--plot-classes',
+                        help=plot_classes,
+                        action='store_true')
     return parser.parse_args()
 
 
@@ -88,7 +92,19 @@ def prettyplot_inferencedata(args):
     )
 
 
+def plot_classification(args):
+    """Plot a histogram of the classification task."""
+    idata = az.from_json(args.infile)
+    ClassificationPlot.config_logger(loglevel=args.log_level)
+    class_results = ClassificationPlot(idata, 'cat')
+    class_results.plot_predicted_parameters(truth=get_truth(args),
+                                            estimators=args.estimators)
+
+
 if __name__ == '__main__':
     args = argparser()
     config_logger(args)
-    prettyplot_inferencedata(args)
+    if args.plot_classes:
+        plot_classification(args)
+    else:
+        prettyplot_inferencedata(args)
