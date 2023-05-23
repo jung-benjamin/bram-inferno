@@ -10,7 +10,7 @@ import arviz as az
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from newbie.estimators import EstimatorFactory
+from newbie.plot_utils import PosteriorPlot
 
 PARAM_REGEX = re.compile('([a-zA-Z])([a-z]+)(\d|[A-Z]?)')
 
@@ -59,96 +59,33 @@ def logger():
     return logging.getLogger(__name__)
 
 
-def get_param_batch_id(data_var):
-    """Extract the batch id of an inference variable."""
-    c = PARAM_REGEX.fullmatch(data_var)
-    if c:
-        # param = ''.join([c.group(1), c.group(2)])
-        batch_id = c.group(3)
-        return batch_id
-
-
-def group_batch_parameters(idata):
-    """Group inference variables by their batch id."""
-    batch_params = {}
-    skipped_params = []
-    for n in list(idata.posterior.data_vars):
-        batch_id = get_param_batch_id(n)
-        if batch_id:
-            try:
-                batch_params[batch_id].extend([n])
-            except KeyError:
-                batch_params[batch_id] = [n]
+def get_truth(args):
+    """Load the synthetic truth from a csv file."""
+    if args.truth_file:
+        truth = pd.read_csv(args.truth_file, index_col=0)
+        if args.truth_key:
+            return truth.loc[args.truth_key]
         else:
-            skipped_params.append(n)
-    return {n: sorted(it) for n, it in batch_params.items()}, skipped_params
-
-
-def plot_posteriors(idata, **plot_kw):
-    """Plot the posterior distributions of an inference run"""
-    idata = az.from_json(args.infile)
-    batch_params, others = group_batch_parameters(idata)
-    logger().debug(f'Batch parameters: {batch_params}')
-    logger().debug(f'Skipped parameters: {others}')
-    nrows = len(batch_params)
-    ncols = max([len(it) for n, it in batch_params.items()])
-    fig, axes = plt.subplots(ncols=ncols, nrows=nrows, **plot_kw)
-    ax_dict = {}
-    for i, (n, it) in enumerate(batch_params.items()):
-        az.plot_posterior(idata,
-                          var_names=it,
-                          ax=axes[i, :],
-                          point_estimate=None,
-                          hdi_prob='hide')
-        for i, a in zip(it, axes[i, :]):
-            ax_dict[i] = a
-    return fig, ax_dict
-
-
-def plot_truth(args, ax_dict):
-    """Add vertical lines of true parameter values to the plots"""
-    truth = pd.read_csv(args.truth_file, index_col=0)
-    if args.truth_key:
-        tr = truth.loc[args.truth_key]
-    else:
-        try:
-            truth_key = '_'.join(args.infile.stem.split('_')[2:])
-            tr = truth.loc[truth_key]
-        except KeyError:
-            msg = 'Truth key could not be inferred from the file name.'
-            raise KeyError(msg)
-    for n, ax in ax_dict.items():
-        ax.axvline(tr[n], ls='dashed')
-    return ax_dict
-
-
-def plot_estimator(estimator, ax_dict, color, label):
-    """Add vertical lines of posterior estimators to the plots."""
-    for n, ax in ax_dict.items():
-        e = estimator[n]
-        ax.axvline(e, ls='dotted', color=color, label=label)
+            try:
+                truth_key = '_'.join(args.infile.stem.split('_')[2:])
+                return truth.loc[truth_key]
+            except KeyError:
+                msg = 'Truth key could not be inferred from the file name.'
+                raise KeyError(msg)
 
 
 def prettyplot_inferencedata(args):
     """Create a plot of a single inference data file."""
     idata = az.from_json(args.infile)
-    fig, axes = plot_posteriors(idata,
-                                figsize=args.figsize,
-                                constrained_layout=True)
-    if args.truth_file:
-        plot_truth(args, axes)
-    if args.estimators:
-        colors = plt.cm.tab10
-        for i, e in enumerate(args.estimators):
-            esti = EstimatorFactory.create_estimator(e, idata)
-            esti_data = esti.calculate_estimator()
-            plot_estimator(esti_data, axes, colors(i), label=e)
-    legend = list(axes.values())[0].get_legend_handles_labels()
-    # fig.legend(*legend, loc='outside upper center')
-    # fig.subplots_adjust(top=0.95)
-    if args.save:
-        plt.savefig(args.save)
-    plt.show()
+    PosteriorPlot.config_logger(loglevel=args.log_level)
+    plotter = PosteriorPlot(inference_data=idata)
+    plotter.plot(
+        truth=get_truth(args),
+        estimators=args.estimators,
+        save=args.save,
+        figsize=args.figsize,
+        constrained_layout=True,
+    )
 
 
 if __name__ == '__main__':
