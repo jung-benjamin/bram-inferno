@@ -88,7 +88,7 @@ class Metric:
             dist /= np.abs(range)
         return dist
 
-    def calculate_metric(self, unit=True, **kwargs):
+    def calculate_metric_norm(self, unit=True, **kwargs):
         """Calculate the euclidian norm of the distances."""
         dist = self.calculate_distance(**kwargs)
         d = dist.to_array(dim='data_vars')
@@ -142,8 +142,8 @@ class MetricSet:
         return xr.concat(m,
                          dim='Metric').assign_coords(Metric=list(self.metrics))
 
-    def calculate_metrics(self, unit=True, **kwargs):
-        """Calculate metrics for selected estimators."""
+    def calculate_metric_norms(self, unit=True, **kwargs):
+        """Calculate euclidian norms of the distances."""
         dist = self.calculate_distances(**kwargs)
         d = dist.to_array(dim='data_vars')
         if unit:

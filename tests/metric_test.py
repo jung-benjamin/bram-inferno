@@ -56,8 +56,8 @@ def test_calculate_metric(rootdir):
     truth = load_truth(rootdir)
     for m in ['peak', 'mean', 'mode']:
         metric = metrics.Metric('peak', idata, truth)
-        metric.calculate_metric()
-        metric.calculate_metric(unit=True)
+        metric.calculate_metric_norm()
+        metric.calculate_metric_norm(unit=True)
         assert True
 
 
@@ -75,5 +75,5 @@ def test_metric_set_metrics(rootdir):
     idata = load_idata(rootdir)
     truth = load_truth(rootdir)
     ms = metrics.MetricSet(idata, truth)
-    ms.calculate_metrics()
+    ms.calculate_metric_norms()
     assert True
