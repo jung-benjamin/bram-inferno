@@ -13,6 +13,8 @@ The user can modify other keyword arguments of the find_peaks method.
 This module uses the scipy style guide for docstrings.
 """
 
+import logging
+
 import arviz as az
 import numpy as np
 import xarray as xr
@@ -23,6 +25,31 @@ class Estimator:
 
     def __init__(self, inference_data):
         self.inference_data = inference_data
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
 
     def _estimator_func(self, posterior, **kwargs):
         """Warpper for functions implemented by subclasses."""
@@ -100,8 +127,7 @@ class PeakEstimator(Estimator):
                                                  wlen=wlen,
                                                  **kwargs)
         if len(peak_idx) == 0:
-            msg = f'Number of peaks is {len(peak_idx)}'
-            print('Warning:', msg)
+            self.logger.warn('Number of peaks is 0.')
             return
         if not wlen:
             wlen = len(samples) / len(peak_idx)
