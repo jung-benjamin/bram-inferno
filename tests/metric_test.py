@@ -1,13 +1,16 @@
 #! /usr/bin/env python3
 """Tests for the metrics module."""
 
+import unittest
 from pathlib import Path
 
 import arviz as az
+import numpy as np
 import pandas as pd
 import xarray as xr
 
 from newbie import estimators, metrics
+from newbie.metrics import MAPEMeasure, RMSEMeasure, RSquaredMeasure
 
 
 def load_idata(rootdir):
@@ -77,3 +80,27 @@ def test_metric_set_metrics(rootdir):
     ms = metrics.MetricSet(idata, truth)
     ms.calculate_metric_norms()
     assert True
+
+
+class AccuracyMeasureTests(unittest.TestCase):
+
+    def test_r_squared_measure(self):
+        truth = np.array([1, 2, 3, 4, 5])
+        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        measure = RSquaredMeasure()
+        accuracy = measure(truth, prediction)
+        self.assertAlmostEqual(accuracy, 0.981, places=4)
+
+    def test_mape_measure(self):
+        truth = np.array([1, 2, 3, 4, 5])
+        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        measure = MAPEMeasure()
+        accuracy = measure(truth, prediction)
+        self.assertAlmostEqual(accuracy, 7.0333, places=4)
+
+    def test_rmse_measure(self):
+        truth = np.array([1, 2, 3, 4, 5])
+        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        measure = RMSEMeasure()
+        accuracy = measure(truth, prediction)
+        self.assertAlmostEqual(accuracy, 0.1949358, places=6)

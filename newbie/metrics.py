@@ -8,6 +8,7 @@ Requirements
 """
 
 import logging
+from abc import ABC, abstractmethod
 from functools import cache
 
 import numpy as np
@@ -151,3 +152,60 @@ class MetricSet:
         else:
             metr = np.linalg.norm(d, axis=1)
         return dict(zip(self.metrics, metr))
+
+
+class AccuracyMeasure(ABC):
+    """Statistical measures for the accuracy of predictions."""
+
+    @abstractmethod
+    def calculate_accuracy(self, truth, prediction):
+        pass
+
+    def __call__(self, truth, prediction):
+        return self.calculate_accuracy(truth, prediction)
+
+
+class RSquaredMeasure(AccuracyMeasure):
+    """R-squared as measure for prediction accuracy."""
+
+    def calculate_accuracy(self, truth, prediction):
+        mean_truth = np.mean(truth)
+        ss_total = np.sum((truth - mean_truth)**2)
+        ss_residual = np.sum((truth - prediction)**2)
+        r_squared = 1.0 - (ss_residual / ss_total)
+        return r_squared
+
+
+class MAPEMeasure(AccuracyMeasure):
+    """Mean absolute percentage error"""
+
+    def calculate_accuracy(self, truth, prediction):
+        absolute_errors = np.abs(truth - prediction)
+        relative_errors = absolute_errors / np.maximum(np.abs(truth),
+                                                       np.finfo(float).eps)
+        mape = np.mean(relative_errors) * 100.0
+        return mape
+
+
+class RMSEMeasure(AccuracyMeasure):
+    """Root mean squared error"""
+
+    def calculate_accuracy(self, truth, prediction):
+        mse = np.mean((truth - prediction)**2)
+        rmse = np.sqrt(mse)
+        return rmse
+
+
+class AccuracyMeasureFactory:
+    """A factory class for accuracy measures."""
+
+    def create_measure(measure_type):
+        if measure_type == "r_squared":
+            return RSquaredMeasure()
+        elif measure_type == "mape":
+            return MAPEMeasure()
+        elif measure_type == "rmse":
+            return RMSEMeasure()
+        else:
+            raise ValueError("Invalid measure type provided.")
+
