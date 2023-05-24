@@ -13,13 +13,13 @@ from functools import cache
 import numpy as np
 import xarray as xr
 
-from newbie import estimators
+from .estimators import EstimatorFactory
 
 
 class Metric:
 
     def __init__(self, estimator, inference_data, truth, data_vars=None):
-        self.estimator = estimators.EstimatorFactory.create_estimator(
+        self.estimator = EstimatorFactory.create_estimator(
             estimator, inference_data)
         self.data_vars = data_vars
         if self.data_vars:
