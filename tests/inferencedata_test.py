@@ -17,6 +17,12 @@ def load_idata(rootdir, fname):
     return data
 
 
+def inference_data(rootdir):
+    """Create instance of InferenceData for use in tests."""
+    return inferencedata.InferenceData.from_json(
+        filepath=rootdir / 'test-data' / 'inference_data.json')
+
+
 def classification_results(rootdir):
     """Create an instance of ClassificationResults for use in tests."""
     cr = inferencedata.ClassificationResults.from_json(
@@ -24,6 +30,18 @@ def classification_results(rootdir):
         filepath=rootdir / 'test-data' / 'classification' /
         'idata_categorical_label1_0239.json')
     return cr
+
+
+def test_infernce_data_from_json(rootdir):
+    """Test for the InferenceData.from_json classmethod."""
+    assert inferencedata.InferenceData.from_json(
+        filepath=rootdir / 'test-data' / 'inference_data.json')
+
+
+def test_inference_data_from_inferencedata(rootdir):
+    """Test for the InferenceData.from_inferencedata classmethod."""
+    idata = az.from_json(rootdir / 'test-data' / 'inference_data.json')
+    assert inferencedata.InferenceData.from_inferencedata(idata)
 
 
 def test_class_results_from_json(rootdir):

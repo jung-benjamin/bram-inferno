@@ -10,6 +10,54 @@ from collections import Counter, defaultdict
 import arviz as az
 
 
+class InferenceData(az.InferenceData):
+    """Extend functionality of arviz.InferenceData"""
+
+    def __init__(self, **kwargs):
+        """Initialize the class and its variables."""
+        super().__init__(**kwargs)
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
+    @classmethod
+    def from_json(cls, filepath):
+        """Initialize the inference data from a json file."""
+        data = az.from_json(filepath)
+        instance = cls()
+        instance.__dict__.update(data.__dict__.copy())
+        return instance
+
+    @classmethod
+    def from_inferencedata(cls, inference_data):
+        """Create class from a plain inference data object."""
+        instance = cls()
+        instance.__dict__.update(inference_data.__dict__.copy())
+        return instance
+
+
 class ClassificationResults(az.InferenceData):
     """Results of Bayesian Inference for Reactor Type Classification"""
 
