@@ -33,6 +33,9 @@ def test_calculate_distance(rootdir):
         metric.calculate_distance()
         metric.calculate_distance(normalize='max')
         metric.calculate_distance(normalize='truth')
+        metric.calculate_distance(normalize='estimator')
+        metric.calculate_distance(normalize='range')
+        metric.calculate_distance(normalize='abssum')
         metric.calculate_distance(absolute=True)
         assert True
     for m in ['peak', 'mean', 'mode']:
