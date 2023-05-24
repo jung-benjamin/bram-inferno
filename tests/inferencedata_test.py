@@ -108,12 +108,12 @@ def test_inference_data_set_from_json(rootdir):
                                                     fmt='')
 
 
-def test_inference_data_set_get_variable(rootdir):
+def test_inference_data_set_get_variables(rootdir):
     """Test for the get_variable method of InferenceDataSet."""
     fdir = rootdir / 'test-data' / 'classification'
     idataset = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
                                                         class_var='cat')
-    burnupA = idataset.get_variable('burnupA')
+    burnupA = idataset.get_variables('burnupA')
     assert len(burnupA) == len(list(fdir.iterdir()))
-    burnupAB = idataset.get_variable(['burnupA', 'burnupB'])
+    burnupAB = idataset.get_variables(['burnupA', 'burnupB'])
     assert len(burnupAB) == len(list(fdir.iterdir()))

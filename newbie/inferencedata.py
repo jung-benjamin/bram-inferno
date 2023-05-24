@@ -275,7 +275,7 @@ class InferenceDataSet:
         """Get logger."""
         return logging.getLogger(self.__class__.__name__)
 
-    def get_variable(self, var_name):
-        """Return inference variable from all posteriors."""
+    def get_variables(self, var_name):
+        """Return inference variables from all posteriors."""
         var_dict = {n: it[var_name] for n, it in self.posteriors.items()}
         return var_dict
