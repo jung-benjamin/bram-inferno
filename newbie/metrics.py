@@ -70,7 +70,13 @@ class Metric:
             dist = np.abs(dist)
         if normalize == 'truth':
             dist /= self.truth
+        elif normalize == 'estimator':
+            dist /= est
         elif normalize == 'max':
+            dist /= max([self.truth, est])
+        elif normalize == 'abssum':
+            dist = 2 * dist / (np.abs(self.truth) + np.abs(est))
+        elif normalize == 'range':
             if self.data_vars:
                 range = (self.estimator.inference_data['posterior'][
                     self.data_vars].max() -
