@@ -6,6 +6,7 @@ Mostly contains subclasses of arviz.InferenceData.
 
 import logging
 from collections import Counter, defaultdict
+from pathlib import Path
 
 import arviz as az
 
@@ -181,3 +182,100 @@ class ClassificationResults(az.InferenceData):
                 elif v[-1] == n:
                     self.batch_posteriors[n][v] = it
         return self.batch_posteriors
+
+
+class InferenceDataSet:
+    """Inference data that are related through some context."""
+    name_format = 'drop_drop_reactor_id'
+
+    def __init__(self, data):
+        """Initialize the inference data set.
+        
+        Creates a dictionary of inference data and ids.
+
+        To-Do: Option to select subset of data or add keys
+        for listed data via an optional variable.
+
+        Parameters
+        ----------
+        data : dict, list or tuple
+            A container of inference data. If the container does
+            not provide keys, keys are created by enumeration.
+        """
+        try:
+            self.data = dict(data)
+        except ValueError:
+            self.data = dict(enumerate(data))
+        self.posteriors = {n: it.posterior for n, it in self.data.items()}
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @classmethod
+    def from_json(cls, file_paths, fmt=None, class_var=None):
+        """Load the inference data from a list of json files."""
+        if class_var:
+            idata = [
+                ClassificationResults.from_json(class_var=class_var,
+                                                filepath=f) for f in file_paths
+            ]
+        else:
+            idata = [InferenceData.from_json(f) for f in file_paths]
+        if fmt:
+            cls.set_name_format(fmt)
+        ids = [cls.key_from_filename(Path(f).stem) for f in file_paths]
+        return cls(dict(zip(ids, idata)))
+
+    @classmethod
+    def parse_filename(cls, name):
+        """Extract data from the filenames given a format.
+
+        An underscore is used to separate the format and the filename.
+        """
+        info = {}
+        if cls.name_format == '':
+            return {'filename': name}
+        for i, j in zip(cls.name_format.split('_'), name.split('_')):
+            if i == 'drop':
+                pass
+            else:
+                info[i] = j
+        return info
+
+    @classmethod
+    def key_from_filename(cls, fname):
+        """Turn filename into a key."""
+        info = cls.parse_filename(fname)
+        return '_'.join(list(info.values()))
+
+    @classmethod
+    def set_name_format(cls, fmt):
+        """Change the name format."""
+        cls.name_format = fmt
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
+    def get_variable(self, var_name):
+        """Return inference variable from all posteriors."""
+        var_dict = {n: it[var_name] for n, it in self.posteriors.items()}
+        return var_dict

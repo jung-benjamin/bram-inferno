@@ -87,3 +87,33 @@ def test_classification_results_from_idata(rootdir):
     cr = inferencedata.ClassificationResults.from_inferencedata(
         class_var='cat', inference_data=idata)
     assert cr
+
+
+def test_inference_data_set(rootdir):
+    """Test for the __init__ of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    assert inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert inferencedata.InferenceDataSet([('i1', idata1), ('i2', idata2)])
+    assert inferencedata.InferenceDataSet([idata1, idata2])
+
+
+def test_inference_data_set_from_json(rootdir):
+    """Test for the from_json classmethod of InferenceDataSet."""
+    fdir = rootdir / 'test-data' / 'classification'
+    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()))
+    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                    class_var='cat')
+    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                    fmt='')
+
+
+def test_inference_data_set_get_variable(rootdir):
+    """Test for the get_variable method of InferenceDataSet."""
+    fdir = rootdir / 'test-data' / 'classification'
+    idataset = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                        class_var='cat')
+    burnupA = idataset.get_variable('burnupA')
+    assert len(burnupA) == len(list(fdir.iterdir()))
+    burnupAB = idataset.get_variable(['burnupA', 'burnupB'])
+    assert len(burnupAB) == len(list(fdir.iterdir()))
