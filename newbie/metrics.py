@@ -8,6 +8,7 @@ Requirements
 """
 
 import logging
+from functools import cache
 
 import numpy as np
 import xarray as xr
@@ -54,9 +55,14 @@ class Metric:
         """Get logger."""
         return logging.getLogger(self.__class__.__name__)
 
+    @cache
+    def calculate_estimator(self, **kwargs):
+        """Wrapper for estimator.calculate_estimator."""
+        return self.estimator.calculate_estimator(self.data_vars, **kwargs)
+
     def calculate_distance(self, normalize=None, absolute=False, **kwargs):
         """Calculate distance between estimator and truth."""
-        est = self.estimator.calculate_estimator(self.data_vars, **kwargs)
+        est = self.calculate_estimator(**kwargs)
         self.logger.debug(f'Estimator shape: {est.variables}')
         self.logger.debug(f'Truth shape: {self.truth}')
         dist = self.truth - est
