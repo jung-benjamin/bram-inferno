@@ -9,6 +9,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import arviz as az
+import xarray as xr
+
+from .estimators import EstimatorFactory
 
 
 class InferenceData(az.InferenceData):
@@ -57,6 +60,18 @@ class InferenceData(az.InferenceData):
         instance = cls()
         instance.__dict__.update(inference_data.__dict__.copy())
         return instance
+
+    def _get_estimator(self, estimator_type):
+        """Wrapper for EstimatorFactory.create_estimator"""
+        return EstimatorFactory.create_estimator(estimator_type=estimator_type,
+                                                 inference_data=self)
+
+    def calculate_estimator(self, estimator_type, data_vars=None, **kwargs):
+        """Calculate the estimator for all inference data."""
+        estimator = self._get_estimator(estimator_type)
+        self.estimator_values = estimator.calculate_estimator(
+            data_vars=data_vars, **kwargs)
+        return self.estimator_values
 
 
 class ClassificationResults(az.InferenceData):
@@ -191,7 +206,9 @@ class InferenceDataSet:
     def __init__(self, data):
         """Initialize the inference data set.
         
-        Creates a dictionary of inference data and ids.
+        Creates a dictionary of inference data and ids. If
+        arviz.InferenceData are passed, these are converted
+        to the subclass from this module.
 
         To-Do: Option to select subset of data or add keys
         for listed data via an optional variable.
@@ -206,7 +223,13 @@ class InferenceDataSet:
             self.data = dict(data)
         except ValueError:
             self.data = dict(enumerate(data))
+        if not all([isinstance(d, InferenceData) for d in self.data.values()]):
+            self.data = {
+                n: InferenceData.from_inferencedata(it)
+                for n, it in self.data.items()
+            }
         self.posteriors = {n: it.posterior for n, it in self.data.items()}
+        self.estimators = None
 
     @classmethod
     def config_logger(cls,
@@ -279,3 +302,37 @@ class InferenceDataSet:
         """Return inference variables from all posteriors."""
         var_dict = {n: it[var_name] for n, it in self.posteriors.items()}
         return var_dict
+
+    def calculate_estimator(self, estimator_type, data_vars=None, **kwargs):
+        """Calculate estimator for all inference data in the set.
+        
+        Returns the values of the specified estimator type and sets the
+        estimator values as the new self.estimators variable. If the
+        variable exists, combines the datasets, overwriting previously
+        calculated values of the same estimator.
+
+        Warning: The exact behaviour of the concatenation if data_vars is
+        specified is unkown.
+
+        Parameters
+        ----------
+        estimator_type : str {'mean', 'mode', 'peak'}
+            Choose which type of estimator use.
+        data_vars: str or list of str
+            Select a subset of data_variables of the inference_data.
+        
+        """
+        est_dict = {}
+        for n, idata in self.data.items():
+            est = idata.calculate_estimator(estimator_type=estimator_type,
+                                            data_vars=data_vars,
+                                            **kwargs)
+            est_dict[n] = est.expand_dims({'ID': [n]})
+        est_ds = xr.concat(est_dict.values(), dim='ID').expand_dims(
+            {'Estimator': [estimator_type]})
+        if not self.estimators:
+            self.estimators = est_ds.copy()
+        else:
+            self.estimators = xr.combine_by_coords(
+                [self.estimators, est_ds.copy()])
+        return est_ds

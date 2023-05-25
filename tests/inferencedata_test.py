@@ -44,6 +44,13 @@ def test_inference_data_from_inferencedata(rootdir):
     assert inferencedata.InferenceData.from_inferencedata(idata)
 
 
+def test_inference_data_estimator(rootdir):
+    """Test for the InferenceData.calculate_estimator method."""
+    idata = inferencedata.InferenceData.from_json(rootdir / 'test-data' /
+                                                  'inference_data.json')
+    assert idata.calculate_estimator('mean')
+
+
 def test_class_results_from_json(rootdir):
     """Test for the ClassificationResults.from_json classmethod."""
     cr = inferencedata.ClassificationResults.from_json(
@@ -117,3 +124,13 @@ def test_inference_data_set_get_variables(rootdir):
     assert len(burnupA) == len(list(fdir.iterdir()))
     burnupAB = idataset.get_variables(['burnupA', 'burnupB'])
     assert len(burnupAB) == len(list(fdir.iterdir()))
+
+
+def test_inference_data_set_calculate_estimator(rootdir):
+    """Test for the __init__ of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    ids = inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert ids.calculate_estimator('mean')
+    assert ids.calculate_estimator('mode')
+    assert list(ids.estimators['Estimator']) == ['mean', 'mode']
