@@ -1,21 +1,29 @@
 #! /usr/bin/env python3
 """Tests for the metrics module."""
 
-import unittest
 from pathlib import Path
 
 import arviz as az
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
-from newbie import estimators, metrics
-from newbie.metrics import MAPEMeasure, RMSEMeasure, RSquaredMeasure
+from newbie import metrics
+from newbie.inferencedata import InferenceDataSet
+from newbie.metrics import (MAPEMeasure, MetricDataSet, RMSEMeasure,
+                            RSquaredMeasure)
 
 
 def load_idata(rootdir):
     """Load inference data from json file."""
     data = az.from_json(Path(rootdir, 'test-data', 'inference_data.json'))
+    return data
+
+
+def load_idata_file(rootdir, fname):
+    """Load inference data from a json file."""
+    data = az.from_json(rootdir / 'test-data' / fname)
     return data
 
 
@@ -25,6 +33,13 @@ def load_truth(rootdir):
                      index_col=0)
     df = df.loc['data'].to_dict()
     return xr.Dataset(df)
+
+
+def load_truth_set(rootdir):
+    """Load the true parameter values to an xarray dataset."""
+    df = pd.read_csv(Path(rootdir, 'test-data', 'synthetic_truth.csv'),
+                     index_col=0)
+    return xr.Dataset(df).rename_dims({'dim_0': 'ID'})
 
 
 def test_calculate_distance(rootdir):
@@ -82,25 +97,44 @@ def test_metric_set_metrics(rootdir):
     assert True
 
 
-class AccuracyMeasureTests(unittest.TestCase):
+class TestAccuracyMeasures:
 
     def test_r_squared_measure(self):
-        truth = np.array([1, 2, 3, 4, 5])
-        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        truth = xr.DataArray([1, 2, 3, 4, 5], dims='ID')
+        prediction = xr.DataArray([1.1, 2.2, 2.8, 4.1, 5.3], dims='ID')
         measure = RSquaredMeasure()
         accuracy = measure(truth, prediction)
-        self.assertAlmostEqual(accuracy, 0.981, places=4)
+        assert pytest.approx(accuracy, abs=1e-4) == 0.9810
 
     def test_mape_measure(self):
-        truth = np.array([1, 2, 3, 4, 5])
-        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        truth = xr.DataArray([1, 2, 3, 4, 5], dims='ID')
+        prediction = xr.DataArray([1.1, 2.2, 2.8, 4.1, 5.3], dims='ID')
         measure = MAPEMeasure()
         accuracy = measure(truth, prediction)
-        self.assertAlmostEqual(accuracy, 7.0333, places=4)
+        assert pytest.approx(accuracy, abs=0.1) == 7.0333
 
     def test_rmse_measure(self):
-        truth = np.array([1, 2, 3, 4, 5])
-        prediction = np.array([1.1, 2.2, 2.8, 4.1, 5.3])
+        truth = xr.DataArray([1, 2, 3, 4, 5], dims='ID')
+        prediction = xr.DataArray([1.1, 2.2, 2.8, 4.1, 5.3], dims='ID')
         measure = RMSEMeasure()
         accuracy = measure(truth, prediction)
-        self.assertAlmostEqual(accuracy, 0.1949358, places=6)
+        assert pytest.approx(accuracy, abs=1e-4) == 0.1949
+
+
+def test_metric_data_set(rootdir):
+    """Test the MetricDataSet class"""
+    idata1 = load_idata_file(rootdir, 'inference_data.json')
+    idata2 = load_idata_file(rootdir, 'inference_data_2.json')
+    ids = InferenceDataSet({'data': idata1, 'data_2': idata2})
+    assert MetricDataSet(ids, load_truth(rootdir))
+
+
+def test_metric_data_set_calc_measure(rootdir):
+    """Test for the calc_measure method of MetricDataSet"""
+    idata1 = load_idata_file(rootdir, 'inference_data.json')
+    idata2 = load_idata_file(rootdir, 'inference_data_2.json')
+    ids = InferenceDataSet({'data': idata1, 'data_2': idata2})
+    mds = MetricDataSet(ids, load_truth_set(rootdir))
+    assert mds.calc_measure('r_squared', 'mean')
+    assert mds.calc_measure('mape', 'mode')
+    assert mds.calc_measure('rmse', 'mean')

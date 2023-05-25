@@ -168,10 +168,10 @@ class AccuracyMeasure(ABC):
 class RSquaredMeasure(AccuracyMeasure):
     """R-squared as measure for prediction accuracy."""
 
-    def calculate_accuracy(self, truth, prediction):
-        mean_truth = np.mean(truth)
-        ss_total = np.sum((truth - mean_truth)**2)
-        ss_residual = np.sum((truth - prediction)**2)
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
+        mean_truth = truth.mean(dim=dim)
+        ss_total = ((truth - mean_truth)**2).sum(dim=dim)
+        ss_residual = ((truth - prediction)**2).sum(dim=dim)
         r_squared = 1.0 - (ss_residual / ss_total)
         return r_squared
 
@@ -179,19 +179,19 @@ class RSquaredMeasure(AccuracyMeasure):
 class MAPEMeasure(AccuracyMeasure):
     """Mean absolute percentage error"""
 
-    def calculate_accuracy(self, truth, prediction):
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
         absolute_errors = np.abs(truth - prediction)
         relative_errors = absolute_errors / np.maximum(np.abs(truth),
                                                        np.finfo(float).eps)
-        mape = np.mean(relative_errors) * 100.0
+        mape = relative_errors.mean(dim=dim) * 100.0
         return mape
 
 
 class RMSEMeasure(AccuracyMeasure):
     """Root mean squared error"""
 
-    def calculate_accuracy(self, truth, prediction):
-        mse = np.mean((truth - prediction)**2)
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
+        mse = ((truth - prediction)**2).mean(dim=dim)
         rmse = np.sqrt(mse)
         return rmse
 
@@ -209,3 +209,39 @@ class AccuracyMeasureFactory:
         else:
             raise ValueError("Invalid measure type provided.")
 
+
+class MetricDataSet:
+    """Calculate Metrics for a set of related inference data."""
+
+    def __init__(self, data_set, truth):
+        """Initialize the class with inference data and true values.
+        
+        To-Do: add some checks so that the IDs in truth and data_set
+        match.
+
+        Parameters
+        ----------
+        data_set : InferenceDataSet
+            Data set containing related inference data with associated
+            IDs.
+        truth : DataFrame
+            True parameter values associated with each item in the
+            inference data set.
+        """
+        self.data = data_set
+        self.truth = truth
+
+    def get_measure(self, measure_type):
+        """Wrapper for AccuracyMeasureFactory.create_measure"""
+        return AccuracyMeasureFactory.create_measure(measure_type=measure_type)
+
+    def calc_measure(self, measure_type, estimator_type, data_vars=None):
+        """Calculate an accuracy measure for the inference data."""
+        measure = self.get_measure(measure_type=measure_type)
+        if data_vars:
+            truth = self.truth[data_vars]
+        else:
+            truth = self.truth
+        predicted = self.data.calculate_estimator(estimator_type,
+                                                  data_vars=data_vars)
+        return measure(truth=truth, prediction=predicted)
