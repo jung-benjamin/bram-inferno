@@ -223,7 +223,10 @@ class InferenceDataSet:
             self.data = dict(data)
         except ValueError:
             self.data = dict(enumerate(data))
-        if not all([isinstance(d, InferenceData) for d in self.data.values()]):
+        if not all([
+                isinstance(d, (InferenceData, ClassificationResults))
+                for d in self.data.values()
+        ]):
             self.data = {
                 n: InferenceData.from_inferencedata(it)
                 for n, it in self.data.items()

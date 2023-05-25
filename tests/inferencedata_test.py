@@ -108,9 +108,14 @@ def test_inference_data_set(rootdir):
 def test_inference_data_set_from_json(rootdir):
     """Test for the from_json classmethod of InferenceDataSet."""
     fdir = rootdir / 'test-data' / 'classification'
-    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()))
-    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
-                                                    class_var='cat')
+    i1 = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()))
+    assert isinstance(i1, inferencedata.InferenceDataSet)
+    assert isinstance(list(i1.data.values())[0], inferencedata.InferenceData)
+    i2 = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                  class_var='cat')
+    assert isinstance(
+        list(i2.data.values())[0], inferencedata.ClassificationResults)
+    assert isinstance(i2, inferencedata.InferenceDataSet)
     assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
                                                     fmt='')
 
