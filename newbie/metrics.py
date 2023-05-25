@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from functools import cache
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from .estimators import EstimatorFactory
@@ -215,7 +216,7 @@ class MetricDataSet:
 
     def __init__(self, data_set, truth):
         """Initialize the class with inference data and true values.
-        
+
         To-Do: add some checks so that the IDs in truth and data_set
         match.
 
@@ -224,11 +225,15 @@ class MetricDataSet:
         data_set : InferenceDataSet
             Data set containing related inference data with associated
             IDs.
-        truth : DataFrame
+        truth : DataFrame or Dataset
             True parameter values associated with each item in the
-            inference data set.
+            inference data set. If a dataframe is passed, the index
+            name is set to 'ID'.
         """
         self.data = data_set
+        if isinstance(truth, pd.DataFrame):
+            truth.index.name = 'ID'
+            self.truth = xr.Dataset(truth)
         self.truth = truth
 
     def get_measure(self, measure_type):
