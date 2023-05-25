@@ -173,6 +173,26 @@ class ClassificationResults(InferenceData):
                     self.batch_posteriors[n][v] = it
         return self.batch_posteriors
 
+    def hide_non_posteriors(self):
+        """Drop posteriors not beloning to class result.
+        
+        Posteriors that do not belong the the label that is
+        determined as the result of the classification part
+        of the inference are dropped from the posterior and
+        moved to hidden_posteriors.
+        """
+        self.sort_posteriors_by_batch()
+        self.get_class_results()
+        keep_vars = list(self.batch_posteriors[self.class_results])
+        all_vars = self.posterior.data_vars
+        self.hidden_posterior = self.posterior.copy()
+        drop_vars = list(set(all_vars) - set(keep_vars))
+        self.posterior = self.posterior.drop_vars(drop_vars)
+        self.posterior = self.posterior.rename(
+            dict(
+                zip(keep_vars,
+                    [k.strip(self.class_results) for k in keep_vars])))
+
 
 class InferenceDataSet:
     """Inference data that are related through some context."""

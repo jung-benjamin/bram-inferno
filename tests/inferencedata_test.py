@@ -96,6 +96,18 @@ def test_classification_results_from_idata(rootdir):
     assert cr
 
 
+def test_classification_hide_posteriors(rootdir):
+    """Test for teh hide_non_posteriors method."""
+    idata = load_idata(rootdir,
+                       'classification/idata_categorical_label1_0239.json')
+    cr = inferencedata.ClassificationResults.from_inferencedata(
+        class_var='cat', inference_data=idata)
+    cr.hide_non_posteriors()
+    assert list(cr.posterior.data_vars) == [
+        'burnup', 'power', 'cooling', 'enrichment'
+    ]
+
+
 def test_inference_data_set(rootdir):
     """Test for the __init__ of InferenceDataSet."""
     idata1 = load_idata(rootdir, 'inference_data.json')
