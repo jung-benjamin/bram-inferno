@@ -74,7 +74,7 @@ class InferenceData(az.InferenceData):
         return self.estimator_values
 
 
-class ClassificationResults(az.InferenceData):
+class ClassificationResults(InferenceData):
     """Results of Bayesian Inference for Reactor Type Classification"""
 
     def __init__(self, class_var, **kwargs):
@@ -83,31 +83,6 @@ class ClassificationResults(az.InferenceData):
         self.reactor_map = {}
         self.class_var = class_var
         self._batch_map = {}
-
-    @classmethod
-    def config_logger(cls,
-                      loglevel='INFO',
-                      logpath=None,
-                      formatstr='%(levelname)s:%(name)s:%(message)s'):
-        """Configure the logger."""
-        log = logging.getLogger(cls.__name__)
-        log.setLevel(getattr(logging, loglevel.upper()))
-        log.handlers.clear()
-        fmt = logging.Formatter(formatstr)
-        sh = logging.StreamHandler()
-        sh.setLevel(getattr(logging, loglevel.upper()))
-        sh.setFormatter(fmt)
-        log.addHandler(sh)
-        if logpath:
-            fh = logging.FileHandler(logpath)
-            fh.setLevel(getattr(logging, loglevel.upper()))
-            fh.setFormatter(fmt)
-            log.addHandler(fh)
-
-    @property
-    def logger(self):
-        """Get logger."""
-        return logging.getLogger(self.__class__.__name__)
 
     @classmethod
     def from_json(cls, class_var, filepath):
