@@ -334,3 +334,18 @@ class InferenceDataSet:
             self.estimators = xr.combine_by_coords(
                 [self.estimators, est_ds.copy()])
         return est_ds
+
+    def get_data_attributes_dict(self, attribute, *args, **kwargs):
+        """Access methods and varables from data.
+        
+        Get a dictionary of attributes or methods evaluated at
+        the args and kwargs for each item in the data.
+        """
+        attribute_dict = {}
+        for n, idata in self.data.items():
+            attribute_dict[n] = getattr(idata, attribute)
+            try:
+                attribute_dict[n] = attribute_dict[n](*args, **kwargs)
+            except AttributeError:
+                pass
+        return attribute_dict
