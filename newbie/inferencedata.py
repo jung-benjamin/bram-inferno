@@ -6,19 +6,20 @@ Mostly contains subclasses of arviz.InferenceData.
 
 import logging
 from collections import Counter, defaultdict
+from pathlib import Path
 
 import arviz as az
+import xarray as xr
+
+from .estimators import EstimatorFactory
 
 
-class ClassificationResults(az.InferenceData):
-    """Results of Bayesian Inference for Reactor Type Classification"""
+class InferenceData(az.InferenceData):
+    """Extend functionality of arviz.InferenceData"""
 
-    def __init__(self, class_var, **kwargs):
-        """Instantiate the classification results class."""
+    def __init__(self, **kwargs):
+        """Initialize the class and its variables."""
         super().__init__(**kwargs)
-        self.reactor_map = {}
-        self.class_var = class_var
-        self._batch_map = {}
 
     @classmethod
     def config_logger(cls,
@@ -44,6 +45,47 @@ class ClassificationResults(az.InferenceData):
     def logger(self):
         """Get logger."""
         return logging.getLogger(self.__class__.__name__)
+
+    @classmethod
+    def from_json(cls, filepath):
+        """Initialize the inference data from a json file."""
+        data = az.from_json(filepath)
+        instance = cls()
+        instance.__dict__.update(data.__dict__.copy())
+        return instance
+
+    @classmethod
+    def from_inferencedata(cls, inference_data):
+        """Create class from a plain inference data object."""
+        instance = cls()
+        instance.__dict__.update(inference_data.__dict__.copy())
+        return instance
+
+    def _get_estimator(self, estimator_type):
+        """Wrapper for EstimatorFactory.create_estimator"""
+        return EstimatorFactory.create_estimator(estimator_type=estimator_type,
+                                                 inference_data=self)
+
+    def calculate_estimator(self, estimator_type, data_vars=None, **kwargs):
+        """Calculate the estimator for all inference data."""
+        estimator = self._get_estimator(estimator_type)
+        self.estimator_values = estimator.calculate_estimator(
+            data_vars=data_vars, **kwargs)
+        return self.estimator_values
+
+
+class ClassificationResults(InferenceData):
+    """Results of Bayesian Inference for Reactor Type Classification"""
+
+    def __init__(self, class_var, **kwargs):
+        """Instantiate the classification results class."""
+        super().__init__(**kwargs)
+        self.reactor_map = {}
+        self.class_var = class_var
+        self.class_results = None
+        self.class_posterior = []
+        self.batch_posteriors = {}
+        self._batch_map = {}
 
     @classmethod
     def from_json(cls, class_var, filepath):
@@ -133,3 +175,189 @@ class ClassificationResults(az.InferenceData):
                 elif v[-1] == n:
                     self.batch_posteriors[n][v] = it
         return self.batch_posteriors
+
+    def hide_non_posteriors(self):
+        """Drop posteriors not beloning to class result.
+        
+        Posteriors that do not belong the the label that is
+        determined as the result of the classification part
+        of the inference are dropped from the posterior and
+        moved to hidden_posteriors.
+        """
+        if not self.batch_posteriors:
+            self.sort_posteriors_by_batch()
+        if not self.class_results:
+            self.get_class_results()
+        keep_vars = list(self.batch_posteriors[self.class_results])
+        all_vars = self.posterior.data_vars
+        self.hidden_posterior = self.posterior.copy()
+        drop_vars = list(set(all_vars) - set(keep_vars))
+        self.posterior = self.posterior.drop_vars(drop_vars)
+        self.posterior = self.posterior.rename(
+            dict(
+                zip(keep_vars,
+                    [k.strip(self.class_results) for k in keep_vars])))
+
+
+class InferenceDataSet:
+    """Inference data that are related through some context."""
+    name_format = 'drop_drop_reactor_id'
+
+    def __init__(self, data):
+        """Initialize the inference data set.
+        
+        Creates a dictionary of inference data and ids. If
+        arviz.InferenceData are passed, these are converted
+        to the subclass from this module.
+
+        To-Do: Option to select subset of data or add keys
+        for listed data via an optional variable.
+
+        Parameters
+        ----------
+        data : dict, list or tuple
+            A container of inference data. If the container does
+            not provide keys, keys are created by enumeration.
+        """
+        try:
+            self.data = dict(data)
+        except ValueError:
+            self.data = dict(enumerate(data))
+        if not all([
+                isinstance(d, (InferenceData, ClassificationResults))
+                for d in self.data.values()
+        ]):
+            self.data = {
+                n: InferenceData.from_inferencedata(it)
+                for n, it in self.data.items()
+            }
+        self.posteriors = {n: it.posterior for n, it in self.data.items()}
+        self.estimators = None
+
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @classmethod
+    def from_json(cls, file_paths, fmt=None, class_var=None):
+        """Load the inference data from a list of json files."""
+        if class_var:
+            idata = [
+                ClassificationResults.from_json(class_var=class_var,
+                                                filepath=f) for f in file_paths
+            ]
+        else:
+            idata = [InferenceData.from_json(f) for f in file_paths]
+        if fmt:
+            cls.set_name_format(fmt)
+        ids = [cls.key_from_filename(Path(f).stem) for f in file_paths]
+        return cls(dict(zip(ids, idata)))
+
+    @classmethod
+    def parse_filename(cls, name):
+        """Extract data from the filenames given a format.
+
+        An underscore is used to separate the format and the filename.
+        """
+        info = {}
+        if cls.name_format == '':
+            return {'filename': name}
+        for i, j in zip(cls.name_format.split('_'), name.split('_')):
+            if i == 'drop':
+                pass
+            else:
+                info[i] = j
+        return info
+
+    @classmethod
+    def key_from_filename(cls, fname):
+        """Turn filename into a key."""
+        info = cls.parse_filename(fname)
+        return '_'.join(list(info.values()))
+
+    @classmethod
+    def set_name_format(cls, fmt):
+        """Change the name format."""
+        cls.name_format = fmt
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
+    def get_variables(self, var_name):
+        """Return inference variables from all posteriors."""
+        var_dict = {n: it[var_name] for n, it in self.posteriors.items()}
+        return var_dict
+
+    def calculate_estimator(self, estimator_type, data_vars=None, **kwargs):
+        """Calculate estimator for all inference data in the set.
+        
+        Returns the values of the specified estimator type and sets the
+        estimator values as the new self.estimators variable. If the
+        variable exists, combines the datasets, overwriting previously
+        calculated values of the same estimator.
+        If the data are ClassificationResults, any elements with an
+        'inconclusive' prediction are skipped.
+
+        Warning: The exact behaviour of the concatenation if data_vars is
+        specified is unkown.
+
+        Parameters
+        ----------
+        estimator_type : str {'mean', 'mode', 'peak'}
+            Choose which type of estimator use.
+        data_vars: str or list of str
+            Select a subset of data_variables of the inference_data.
+        
+        """
+        est_dict = {}
+        for n, idata in self.data.items():
+            if isinstance(idata, ClassificationResults
+                          ) and idata.class_results == 'inconclusive':
+                continue
+            est = idata.calculate_estimator(estimator_type=estimator_type,
+                                            data_vars=data_vars,
+                                            **kwargs)
+            est_dict[n] = est.expand_dims({'ID': [n]})
+        est_ds = xr.concat(est_dict.values(), dim='ID').expand_dims(
+            {'Estimator': [estimator_type]})
+        if not self.estimators:
+            self.estimators = est_ds.copy()
+        elif estimator_type in list(self.estimators['Estimator']):
+            self.estimators.update(est_ds)
+        else:
+            self.estimators = xr.combine_by_coords(
+                [self.estimators, est_ds.copy()])
+        return est_ds
+
+    def get_data_attributes_dict(self, attribute, *args, **kwargs):
+        """Access methods and varables from data.
+        
+        Get a dictionary of attributes or methods evaluated at
+        the args and kwargs for each item in the data.
+        """
+        attribute_dict = {}
+        for n, idata in self.data.items():
+            attribute_dict[n] = getattr(idata, attribute)
+            try:
+                attribute_dict[n] = attribute_dict[n](*args, **kwargs)
+            except TypeError:
+                pass
+        return attribute_dict

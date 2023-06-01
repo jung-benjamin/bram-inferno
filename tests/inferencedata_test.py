@@ -17,6 +17,12 @@ def load_idata(rootdir, fname):
     return data
 
 
+def inference_data(rootdir):
+    """Create instance of InferenceData for use in tests."""
+    return inferencedata.InferenceData.from_json(
+        filepath=rootdir / 'test-data' / 'inference_data.json')
+
+
 def classification_results(rootdir):
     """Create an instance of ClassificationResults for use in tests."""
     cr = inferencedata.ClassificationResults.from_json(
@@ -24,6 +30,25 @@ def classification_results(rootdir):
         filepath=rootdir / 'test-data' / 'classification' /
         'idata_categorical_label1_0239.json')
     return cr
+
+
+def test_infernce_data_from_json(rootdir):
+    """Test for the InferenceData.from_json classmethod."""
+    assert inferencedata.InferenceData.from_json(
+        filepath=rootdir / 'test-data' / 'inference_data.json')
+
+
+def test_inference_data_from_inferencedata(rootdir):
+    """Test for the InferenceData.from_inferencedata classmethod."""
+    idata = az.from_json(rootdir / 'test-data' / 'inference_data.json')
+    assert inferencedata.InferenceData.from_inferencedata(idata)
+
+
+def test_inference_data_estimator(rootdir):
+    """Test for the InferenceData.calculate_estimator method."""
+    idata = inferencedata.InferenceData.from_json(rootdir / 'test-data' /
+                                                  'inference_data.json')
+    assert idata.calculate_estimator('mean')
 
 
 def test_class_results_from_json(rootdir):
@@ -69,3 +94,69 @@ def test_classification_results_from_idata(rootdir):
     cr = inferencedata.ClassificationResults.from_inferencedata(
         class_var='cat', inference_data=idata)
     assert cr
+
+
+def test_classification_hide_posteriors(rootdir):
+    """Test for teh hide_non_posteriors method."""
+    idata = load_idata(rootdir,
+                       'classification/idata_categorical_label1_0239.json')
+    cr = inferencedata.ClassificationResults.from_inferencedata(
+        class_var='cat', inference_data=idata)
+    cr.hide_non_posteriors()
+    assert list(cr.posterior.data_vars) == [
+        'burnup', 'power', 'cooling', 'enrichment'
+    ]
+
+
+def test_inference_data_set(rootdir):
+    """Test for the __init__ of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    assert inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert inferencedata.InferenceDataSet([('i1', idata1), ('i2', idata2)])
+    assert inferencedata.InferenceDataSet([idata1, idata2])
+
+
+def test_inference_data_set_from_json(rootdir):
+    """Test for the from_json classmethod of InferenceDataSet."""
+    fdir = rootdir / 'test-data' / 'classification'
+    i1 = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()))
+    assert isinstance(i1, inferencedata.InferenceDataSet)
+    assert isinstance(list(i1.data.values())[0], inferencedata.InferenceData)
+    i2 = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                  class_var='cat')
+    assert isinstance(
+        list(i2.data.values())[0], inferencedata.ClassificationResults)
+    assert isinstance(i2, inferencedata.InferenceDataSet)
+    assert inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                    fmt='')
+
+
+def test_inference_data_set_get_variables(rootdir):
+    """Test for the get_variable method of InferenceDataSet."""
+    fdir = rootdir / 'test-data' / 'classification'
+    idataset = inferencedata.InferenceDataSet.from_json(list(fdir.iterdir()),
+                                                        class_var='cat')
+    burnupA = idataset.get_variables('burnupA')
+    assert len(burnupA) == len(list(fdir.iterdir()))
+    burnupAB = idataset.get_variables(['burnupA', 'burnupB'])
+    assert len(burnupAB) == len(list(fdir.iterdir()))
+
+
+def test_inference_data_set_calculate_estimator(rootdir):
+    """Test for the __init__ of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    ids = inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert ids.calculate_estimator('mean')
+    assert ids.calculate_estimator('mode')
+    assert list(ids.estimators['Estimator']) == ['mean', 'mode']
+
+
+def test_inference_data_get_data_attributes_dict(rootdir):
+    """Test for the gets_data_attributes_dict of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    ids = inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert ids.get_data_attributes_dict('calculate_estimator', 'mean')
+    assert ids.get_data_attributes_dict('posterior')

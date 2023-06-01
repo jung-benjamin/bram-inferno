@@ -8,18 +8,20 @@ Requirements
 """
 
 import logging
+from abc import ABC, abstractmethod
 from functools import cache
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
-from newbie import estimators
+from .estimators import EstimatorFactory
 
 
 class Metric:
 
     def __init__(self, estimator, inference_data, truth, data_vars=None):
-        self.estimator = estimators.EstimatorFactory.create_estimator(
+        self.estimator = EstimatorFactory.create_estimator(
             estimator, inference_data)
         self.data_vars = data_vars
         if self.data_vars:
@@ -88,7 +90,7 @@ class Metric:
             dist /= np.abs(range)
         return dist
 
-    def calculate_metric(self, unit=True, **kwargs):
+    def calculate_metric_norm(self, unit=True, **kwargs):
         """Calculate the euclidian norm of the distances."""
         dist = self.calculate_distance(**kwargs)
         d = dist.to_array(dim='data_vars')
@@ -142,8 +144,8 @@ class MetricSet:
         return xr.concat(m,
                          dim='Metric').assign_coords(Metric=list(self.metrics))
 
-    def calculate_metrics(self, unit=True, **kwargs):
-        """Calculate metrics for selected estimators."""
+    def calculate_metric_norms(self, unit=True, **kwargs):
+        """Calculate euclidian norms of the distances."""
         dist = self.calculate_distances(**kwargs)
         d = dist.to_array(dim='data_vars')
         if unit:
@@ -151,3 +153,100 @@ class MetricSet:
         else:
             metr = np.linalg.norm(d, axis=1)
         return dict(zip(self.metrics, metr))
+
+
+class AccuracyMeasure(ABC):
+    """Statistical measures for the accuracy of predictions."""
+
+    @abstractmethod
+    def calculate_accuracy(self, truth, prediction):
+        pass
+
+    def __call__(self, truth, prediction):
+        return self.calculate_accuracy(truth, prediction)
+
+
+class RSquaredMeasure(AccuracyMeasure):
+    """R-squared as measure for prediction accuracy."""
+
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
+        mean_truth = truth.mean(dim=dim)
+        ss_total = ((truth - mean_truth)**2).sum(dim=dim)
+        ss_residual = ((truth - prediction)**2).sum(dim=dim)
+        r_squared = 1.0 - (ss_residual / ss_total)
+        return r_squared
+
+
+class MAPEMeasure(AccuracyMeasure):
+    """Mean absolute percentage error"""
+
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
+        absolute_errors = np.abs(truth - prediction)
+        relative_errors = absolute_errors / np.maximum(np.abs(truth),
+                                                       np.finfo(float).eps)
+        mape = relative_errors.mean(dim=dim) * 100.0
+        return mape
+
+
+class RMSEMeasure(AccuracyMeasure):
+    """Root mean squared error"""
+
+    def calculate_accuracy(self, truth, prediction, dim='ID'):
+        mse = ((truth - prediction)**2).mean(dim=dim)
+        rmse = np.sqrt(mse)
+        return rmse
+
+
+class AccuracyMeasureFactory:
+    """A factory class for accuracy measures."""
+
+    def create_measure(measure_type):
+        if measure_type == "r_squared":
+            return RSquaredMeasure()
+        elif measure_type == "mape":
+            return MAPEMeasure()
+        elif measure_type == "rmse":
+            return RMSEMeasure()
+        else:
+            raise ValueError("Invalid measure type provided.")
+
+
+class MetricDataSet:
+    """Calculate Metrics for a set of related inference data."""
+
+    def __init__(self, data_set, truth):
+        """Initialize the class with inference data and true values.
+
+        To-Do: add some checks so that the IDs in truth and data_set
+        match.
+
+        Parameters
+        ----------
+        data_set : InferenceDataSet
+            Data set containing related inference data with associated
+            IDs.
+        truth : DataFrame or Dataset
+            True parameter values associated with each item in the
+            inference data set. If a dataframe is passed, the index
+            name is set to 'ID'.
+        """
+        self.data = data_set
+        if isinstance(truth, pd.DataFrame):
+            truth.index.name = 'ID'
+            self.truth = xr.Dataset(truth)
+        self.truth = truth
+
+    def get_measure(self, measure_type):
+        """Wrapper for AccuracyMeasureFactory.create_measure"""
+        return AccuracyMeasureFactory.create_measure(measure_type=measure_type)
+
+    def calc_measure(self, measure_type, estimator_type, data_vars=None):
+        """Calculate an accuracy measure for the inference data."""
+        measure = self.get_measure(measure_type=measure_type)
+        if data_vars:
+            truth = self.truth[data_vars]
+        else:
+            truth = self.truth
+        predicted = self.data.calculate_estimator(estimator_type,
+                                                  data_vars=data_vars)
+        return measure(truth=truth, prediction=predicted)

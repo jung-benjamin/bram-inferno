@@ -23,7 +23,7 @@ from scipy import signal, stats
 
 class Estimator:
 
-    def __init__(self, inference_data):
+    def __init__(self, inference_data=None):
         self.inference_data = inference_data
 
     @classmethod
@@ -56,18 +56,27 @@ class Estimator:
         msg = 'Subclasses of Estimator must implement _estimator_func().'
         raise NotImplementedError(msg)
 
-    def calculate_estimator(self, data_vars=None, **kwargs):
+    def calculate_estimator(self,
+                            data_vars=None,
+                            inference_data=None,
+                            **kwargs):
         """Calculate the estimator for posteriors in the inference data."""
+        if inference_data is None:
+            inference_data = self.inference_data
+            if inference_data is None:
+                msg = ('Inference data has not been specified during' +
+                       ' initalization.')
+                raise ValueError(msg)
         estimator = {}
         if isinstance(data_vars, str):
-            pos = self.inference_data['posterior'][data_vars]
+            pos = inference_data['posterior'][data_vars]
             estimator[data_vars] = self._estimator_func(pos, **kwargs)
         elif data_vars:
             for v in data_vars:
-                pos = self.inference_data['posterior'][v]
+                pos = inference_data['posterior'][v]
                 estimator[v] = self._estimator_func(pos, **kwargs)
         else:
-            for v, it in self.inference_data.posterior.items():
+            for v, it in inference_data.posterior.items():
                 estimator[v] = self._estimator_func(it, **kwargs)
         self.estimator = xr.Dataset(estimator)
         return self.estimator
@@ -156,7 +165,7 @@ class PeakEstimator(Estimator):
 class EstimatorFactory:
 
     @classmethod
-    def create_estimator(cls, estimator_type, inference_data):
+    def create_estimator(cls, estimator_type, inference_data=None):
         if estimator_type == "mode":
             return ModeEstimator(inference_data)
         elif estimator_type == "mean":
