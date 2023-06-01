@@ -82,6 +82,9 @@ class ClassificationResults(InferenceData):
         super().__init__(**kwargs)
         self.reactor_map = {}
         self.class_var = class_var
+        self.class_results = None
+        self.class_posterior = []
+        self.batch_posteriors = {}
         self._batch_map = {}
 
     @classmethod
@@ -181,8 +184,10 @@ class ClassificationResults(InferenceData):
         of the inference are dropped from the posterior and
         moved to hidden_posteriors.
         """
-        self.sort_posteriors_by_batch()
-        self.get_class_results()
+        if not self.batch_posteriors:
+            self.sort_posteriors_by_batch()
+        if not self.class_results:
+            self.get_class_results()
         keep_vars = list(self.batch_posteriors[self.class_results])
         all_vars = self.posterior.data_vars
         self.hidden_posterior = self.posterior.copy()
@@ -325,7 +330,7 @@ class InferenceDataSet:
         est_dict = {}
         for n, idata in self.data.items():
             if isinstance(idata, ClassificationResults
-                          ) and idata.get_class_results() == 'inconclusive':
+                          ) and idata.class_results == 'inconclusive':
                 continue
             est = idata.calculate_estimator(estimator_type=estimator_type,
                                             data_vars=data_vars,
