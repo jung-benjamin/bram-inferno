@@ -308,6 +308,8 @@ class InferenceDataSet:
         estimator values as the new self.estimators variable. If the
         variable exists, combines the datasets, overwriting previously
         calculated values of the same estimator.
+        If the data are ClassificationResults, any elements with an
+        'inconclusive' prediction are skipped.
 
         Warning: The exact behaviour of the concatenation if data_vars is
         specified is unkown.
@@ -322,6 +324,9 @@ class InferenceDataSet:
         """
         est_dict = {}
         for n, idata in self.data.items():
+            if isinstance(idata, ClassificationResults
+                          ) and idata.get_class_results() == 'inconclusive':
+                continue
             est = idata.calculate_estimator(estimator_type=estimator_type,
                                             data_vars=data_vars,
                                             **kwargs)
