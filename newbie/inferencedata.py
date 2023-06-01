@@ -346,6 +346,6 @@ class InferenceDataSet:
             attribute_dict[n] = getattr(idata, attribute)
             try:
                 attribute_dict[n] = attribute_dict[n](*args, **kwargs)
-            except AttributeError:
+            except TypeError:
                 pass
         return attribute_dict
