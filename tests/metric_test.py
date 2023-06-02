@@ -15,19 +15,31 @@ from newbie.metrics import (MAPEMeasure, MetricDataSet, RMSEMeasure,
                             RSquaredMeasure)
 
 
-def load_idata(rootdir):
+@pytest.fixture
+def inference_data(rootdir):
     """Load inference data from json file."""
     data = az.from_json(Path(rootdir, 'test-data', 'inference_data.json'))
     return data
 
 
-def load_idata_file(rootdir, fname):
-    """Load inference data from a json file."""
-    data = az.from_json(rootdir / 'test-data' / fname)
+@pytest.fixture
+def inference_data_2(rootdir):
+    """Load second inference data from a json file."""
+    data = az.from_json(rootdir / 'test-data' / 'inference_data_2.json')
     return data
 
 
-def load_truth(rootdir):
+@pytest.fixture
+def inference_dataset(inference_data, inference_data_2):
+    """Create an InferenceDataSet for testing"""
+    return InferenceDataSet({
+        'data': inference_data,
+        'data_2': inference_data_2
+    })
+
+
+@pytest.fixture
+def truth(rootdir):
     """Load the true parameter values to an xarray dataset."""
     df = pd.read_csv(Path(rootdir, 'test-data', 'synthetic_truth.csv'),
                      index_col=0)
@@ -35,19 +47,24 @@ def load_truth(rootdir):
     return xr.Dataset(df)
 
 
-def load_truth_set(rootdir):
+@pytest.fixture
+def truth_dataset(rootdir):
     """Load the true parameter values to an xarray dataset."""
     df = pd.read_csv(Path(rootdir, 'test-data', 'synthetic_truth.csv'),
                      index_col=0)
     return xr.Dataset(df).rename_dims({'dim_0': 'ID'})
 
 
-def test_calculate_distance(rootdir):
+@pytest.fixture
+def metric_data_set(inference_dataset, truth_dataset):
+    """Load a MetricDataSet for testing."""
+    return MetricDataSet(inference_dataset, truth_dataset)
+
+
+def test_calculate_distance(inference_data, truth):
     """Test the calculate distance method."""
-    idata = load_idata(rootdir)
-    truth = load_truth(rootdir)
     for m in ['peak', 'mean', 'mode']:
-        metric = metrics.Metric(m, idata, truth)
+        metric = metrics.Metric(m, inference_data, truth)
         metric.calculate_distance()
         metric.calculate_distance(normalize='max')
         metric.calculate_distance(normalize='truth')
@@ -58,7 +75,7 @@ def test_calculate_distance(rootdir):
         assert True
     for m in ['peak', 'mean', 'mode']:
         metric = metrics.Metric(m,
-                                idata,
+                                inference_data,
                                 truth,
                                 data_vars=['burnupA', 'powerA'])
         metric.calculate_distance()
@@ -68,31 +85,25 @@ def test_calculate_distance(rootdir):
         assert True
 
 
-def test_calculate_metric(rootdir):
+def test_calculate_metric(inference_data, truth):
     """Test the calculate distance method."""
-    idata = load_idata(rootdir)
-    truth = load_truth(rootdir)
     for m in ['peak', 'mean', 'mode']:
-        metric = metrics.Metric('peak', idata, truth)
+        metric = metrics.Metric('peak', inference_data, truth)
         metric.calculate_metric_norm()
         metric.calculate_metric_norm(unit=True)
         assert True
 
 
-def test_metric_set_distances(rootdir):
+def test_metric_set_distances(inference_data, truth):
     """Test the MetricSet class."""
-    idata = load_idata(rootdir)
-    truth = load_truth(rootdir)
-    ms = metrics.MetricSet(idata, truth)
+    ms = metrics.MetricSet(inference_data, truth)
     ms.calculate_distances()
     assert True
 
 
-def test_metric_set_metrics(rootdir):
+def test_metric_set_metrics(inference_data, truth):
     """Test the MetricSet class."""
-    idata = load_idata(rootdir)
-    truth = load_truth(rootdir)
-    ms = metrics.MetricSet(idata, truth)
+    ms = metrics.MetricSet(inference_data, truth)
     ms.calculate_metric_norms()
     assert True
 
@@ -121,20 +132,14 @@ class TestAccuracyMeasures:
         assert pytest.approx(accuracy, abs=1e-4) == 0.1949
 
 
-def test_metric_data_set(rootdir):
+def test_metric_data_set(metric_data_set):
     """Test the MetricDataSet class"""
-    idata1 = load_idata_file(rootdir, 'inference_data.json')
-    idata2 = load_idata_file(rootdir, 'inference_data_2.json')
-    ids = InferenceDataSet({'data': idata1, 'data_2': idata2})
-    assert MetricDataSet(ids, load_truth(rootdir))
+    assert metric_data_set
 
 
-def test_metric_data_set_calc_measure(rootdir):
+def test_metric_data_set_calc_measure(metric_data_set, truth_dataset):
     """Test for the calc_measure method of MetricDataSet"""
-    idata1 = load_idata_file(rootdir, 'inference_data.json')
-    idata2 = load_idata_file(rootdir, 'inference_data_2.json')
-    ids = InferenceDataSet({'data': idata1, 'data_2': idata2})
-    mds = MetricDataSet(ids, load_truth_set(rootdir))
+    mds = metric_data_set
     assert mds.calc_measure('r_squared', 'mean')
     assert mds.calc_measure('mape', 'mode')
     assert mds.calc_measure('rmse', 'mean')
