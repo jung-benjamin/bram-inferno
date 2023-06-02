@@ -61,6 +61,52 @@ def metric_data_set(inference_dataset, truth_dataset):
     return MetricDataSet(inference_dataset, truth_dataset)
 
 
+@pytest.fixture
+def priors():
+    return {
+        'alphaA': {
+            'lower': 0,
+            'upper': 1
+        },
+        'burnupA': {
+            'lower': 0.1,
+            'upper': 60
+        },
+        'powerA': {
+            'lower': 30,
+            'upper': 160
+        },
+        'coolingA': {
+            'lower': 0,
+            'upper': 10000
+        },
+        'enrichmentA': {
+            'lower': 1,
+            'upper': 5
+        },
+        'alphaB': {
+            'lower': 0,
+            'upper': 1
+        },
+        'burnupB': {
+            'lower': 0.1,
+            'upper': 8
+        },
+        'powerB': {
+            'lower': 1,
+            'upper': 20
+        },
+        'coolingB': {
+            'lower': 0,
+            'upper': 10000
+        },
+        'enrichmentB': {
+            'lower': 0.72,
+            'upper': 1.5
+        }
+    }
+
+
 def test_calculate_distance(inference_data, truth):
     """Test the calculate distance method."""
     for m in ['peak', 'mean', 'mode']:
@@ -143,3 +189,21 @@ def test_metric_data_set_calc_measure(metric_data_set, truth_dataset):
     assert mds.calc_measure('r_squared', 'mean')
     assert mds.calc_measure('mape', 'mode')
     assert mds.calc_measure('rmse', 'mean')
+
+
+def test_metric_data_set_calc_hdi(metric_data_set):
+    """Test for the calc_measure method of MetricDataSet"""
+    mds = metric_data_set
+    assert mds.calc_hdi()
+
+
+def test_metric_data_set_compare_hdi_prior(metric_data_set, priors):
+    """Test for the compare_hdi_prior method."""
+    mds = metric_data_set
+    assert mds.compare_hdi_prior(priors)
+
+
+def test_truth_in_hdi(metric_data_set):
+    """Test for the truth_in_hdi method."""
+    mds = metric_data_set
+    assert mds.truth_in_hdi()

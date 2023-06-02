@@ -11,11 +11,13 @@ import logging
 from abc import ABC, abstractmethod
 from functools import cache
 
+import arviz as az
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from .estimators import EstimatorFactory
+from .inferencedata import ClassificationResults
 
 
 class Metric:
@@ -250,3 +252,74 @@ class MetricDataSet:
         predicted = self.data.calculate_estimator(estimator_type,
                                                   data_vars=data_vars)
         return measure(truth=truth, prediction=predicted)
+
+    def calc_hdi(self, *args, **kwargs):
+        """Calculate highest density intervals for the data set.
+        
+        Multimodal HDIs are not supported. Calculating them throws
+        an error that I am currentlly unable to solve. Without the
+        ability to calculate multimodal HDIs, there is no need to
+        support such cases.
+
+        Parameters
+        ----------
+        args, kwargs
+            Positional and keword arguments passed to arviz.hdi
+        
+        Returns
+        -------
+        hdi: pd.DataFrame
+            DataFrame of HDI
+        """
+        hdi_dict = self.data.apply_func(az.hdi, *args, **kwargs)
+        hdi = xr.concat(hdi_dict.values(),
+                        dim=xr.DataArray(list(hdi_dict.keys()))).rename(
+                            {'dim_0': 'ID'})
+        return hdi
+
+    def compare_hdi_prior(self, priors, *args, **kwargs):
+        """Compare width of HDI to width of uniform priors.
+        
+        Parameters
+        ----------
+        priors : dict
+            Dictionary mapping parameter labels to dictionaries
+            that specify upper and lower bounds of uniform prior
+            distribtions.
+        args, kwargs
+            Arguments for the `calc_hdi` method.
+
+        Returns
+        -------
+        relative_span : xr.Dataset
+            Length of the HDI vs the length of the uniform prior
+            for each parameter in each element of the dataset.
+        """
+        hdi = self.calc_hdi(*args, **kwargs)
+        prior_span = {n: it['upper'] - it['lower'] for n, it in priors.items()}
+        if all(
+                isinstance(d, ClassificationResults)
+                for d in self.data.data.values()):
+            prior_lens = {}
+            for n, idata in self.data.data.items():
+                p_l = {
+                    k[:-1]: prior_span[k]
+                    for k in list(idata.batch_posteriors[idata.class_results])
+                }
+                prior_lens[n] = p_l
+            prior_lens = xr.Dataset.from_dataframe(
+                pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
+        else:
+            prior_lens = {n: prior_span for n in self.data.data}
+            prior_lens = xr.Dataset.from_dataframe(
+                pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
+        hdi_span = hdi.sel(hdi='higher') - hdi.sel(hdi='lower')
+        relative_span = hdi_span / prior_lens
+        return relative_span
+
+    def truth_in_hdi(self, *args, **kwargs):
+        """Check if true parameters lie inside the HDI."""
+        hdi = self.calc_hdi(*args, **kwargs)
+        gt_lower = self.truth > hdi.sel(hdi='lower')
+        lt_higher = self.truth < hdi.sel(hdi='higher')
+        return gt_lower * lt_higher
