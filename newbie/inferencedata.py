@@ -361,3 +361,26 @@ class InferenceDataSet:
             except TypeError:
                 pass
         return attribute_dict
+
+    def apply_func(self, func, *args, **kwargs):
+        """Apply a function to each element in the data set.
+        
+        Parameters
+        ----------
+        func: callable
+            Function that accepts an InferenceData object as its
+            first argument.
+        args, kwargs
+            Further arguments passed to the function.
+
+        Returns
+        -------
+        results: dict
+            Results of each function call associated with the respective
+            ID of the inference data.
+        """
+        results = {
+            n: func(idata, *args, **kwargs)
+            for n, idata in self.data.items()
+        }
+        return results

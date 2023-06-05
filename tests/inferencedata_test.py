@@ -160,3 +160,11 @@ def test_inference_data_get_data_attributes_dict(rootdir):
     ids = inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
     assert ids.get_data_attributes_dict('calculate_estimator', 'mean')
     assert ids.get_data_attributes_dict('posterior')
+
+
+def test_inference_data_set_apply_func(rootdir):
+    """Test for the apply_func method of InferenceDataSet."""
+    idata1 = load_idata(rootdir, 'inference_data.json')
+    idata2 = load_idata(rootdir, 'inference_data_2.json')
+    ids = inferencedata.InferenceDataSet({'i1': idata1, 'i2': idata2})
+    assert ids.apply_func(az.hdi)
