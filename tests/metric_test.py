@@ -218,3 +218,11 @@ def test_dataset_distance(metric_data_set):
     assert mds.calculate_distance('mode', normalize='predicted')
     assert mds.calculate_distance('mode', normalize='max')
     assert mds.calculate_distance('mode', normalize='abssum')
+
+
+def test_dataset_distance_scan(metric_data_set):
+    """Test for the distance_scan method of MetricDataSet."""
+    mds = metric_data_set
+    assert mds.distance_scan(estimator_types=['mean', 'mode'],
+                             normalize=['abssum', 'max', 'truth', 'predicted'],
+                             absolute=[False, True])

@@ -374,4 +374,25 @@ class MetricDataSet:
             dist /= max([truth, predicted])
         elif normalize == 'abssum':
             dist = 2 * dist / (np.abs(truth) + np.abs(predicted))
-        return dist
+        return dist.expand_dims({'Norm': [normalize], 'Absolute': [absolute]})
+
+    def distance_scan(self, estimator_types, normalize, absolute=[False]):
+        """Calculate several different distance metrics
+        
+        Calculates the distance between prediction and truth for all
+        combinations of the specified estimator types, normalization
+        methods, etc.
+        """
+        est_list = []
+        for est in estimator_types:
+            norm_list = []
+            for norm in normalize:
+                abs_list = []
+                for abs in sorted(set(absolute)):
+                    d = self.calculate_distance(estimator_type=est,
+                                                normalize=norm,
+                                                absolute=abs)
+                    abs_list.append(d)
+                norm_list.append(xr.concat(abs_list, dim='Absolute'))
+            est_list.append(xr.concat(norm_list, dim='Norm'))
+        return xr.concat(est_list, dim='Estimator')
