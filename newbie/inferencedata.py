@@ -341,7 +341,13 @@ class InferenceDataSet:
         if not self.estimators:
             self.estimators = est_ds.copy()
         elif estimator_type in list(self.estimators['Estimator']):
-            self.estimators.update(est_ds)
+            # Workaround, because update does not work as I expected.
+            self.estimators = xr.concat([
+                self.estimators.drop_sel(Estimator=estimator_type),
+                est_ds.copy()
+            ],
+                                        dim='Estimator')
+            # self.estimators.update(est_ds)
         else:
             self.estimators = xr.combine_by_coords(
                 [self.estimators, est_ds.copy()])

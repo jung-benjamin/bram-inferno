@@ -323,3 +323,76 @@ class MetricDataSet:
         gt_lower = self.truth > hdi.sel(hdi='lower')
         lt_higher = self.truth < hdi.sel(hdi='higher')
         return gt_lower * lt_higher
+
+    def calculate_distance(self,
+                           estimator_type,
+                           data_vars=None,
+                           normalize=None,
+                           absolute=False,
+                           **kwargs):
+        """Calculate distance between an estimator and the truth.
+        
+        Calculates absolute or relative distances between the prediction
+        determined by an estimator and the true parameter. For a relative
+        distance, the several normalization options are available.
+        
+        Parameters
+        ----------
+        estimator_type: str
+            Select which type of estimator to use. Choose from 'mean',
+            'mode' and 'peak'.
+        data_vars: str or list of str (optional, default None)
+            Select a subset of the data variables to operate on.
+        normalize: str (optional, default None)
+            Select how to normalize the distance. Choose from `None`,
+            'truth', 'predicted', 'max', 'abssum'.
+        absolute: bool (optional, default False)
+            Set to true to calcuate the absolute value of the distance.
+        kwargs
+            Keyword arguments for the `calculate_estimator` method of the
+            InferenceDataSet.
+            
+        Returns
+        dist: xr.Dataset
+            Dataset containing the relative distances.
+        """
+        if data_vars:
+            truth = self.truth[data_vars]
+        else:
+            truth = self.truth
+        predicted = self.data.calculate_estimator(estimator_type,
+                                                  data_vars=data_vars,
+                                                  **kwargs)
+        dist = truth - predicted
+        if absolute:
+            dist = np.abs(dist)
+        if normalize == 'truth':
+            dist /= truth
+        elif normalize == 'predicted':
+            dist /= predicted
+        elif normalize == 'max':
+            dist /= max([truth, predicted])
+        elif normalize == 'abssum':
+            dist = 2 * dist / (np.abs(truth) + np.abs(predicted))
+        return dist.expand_dims({'Norm': [normalize], 'Absolute': [absolute]})
+
+    def distance_scan(self, estimator_types, normalize, absolute=[False]):
+        """Calculate several different distance metrics
+        
+        Calculates the distance between prediction and truth for all
+        combinations of the specified estimator types, normalization
+        methods, etc.
+        """
+        est_list = []
+        for est in estimator_types:
+            norm_list = []
+            for norm in normalize:
+                abs_list = []
+                for abs in sorted(set(absolute)):
+                    d = self.calculate_distance(estimator_type=est,
+                                                normalize=norm,
+                                                absolute=abs)
+                    abs_list.append(d)
+                norm_list.append(xr.concat(abs_list, dim='Absolute'))
+            est_list.append(xr.concat(norm_list, dim='Norm'))
+        return xr.concat(est_list, dim='Estimator')
