@@ -207,3 +207,14 @@ def test_truth_in_hdi(metric_data_set):
     """Test for the truth_in_hdi method."""
     mds = metric_data_set
     assert mds.truth_in_hdi()
+
+
+def test_dataset_distance(metric_data_set):
+    """Test for the calculate_distance method of MetricDataSet."""
+    mds = metric_data_set
+    assert mds.calculate_distance('mode')
+    assert mds.calculate_distance('mean')
+    assert mds.calculate_distance('mode', normalize='truth')
+    assert mds.calculate_distance('mode', normalize='predicted')
+    assert mds.calculate_distance('mode', normalize='max')
+    assert mds.calculate_distance('mode', normalize='abssum')
