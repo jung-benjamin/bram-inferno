@@ -176,7 +176,7 @@ class ClassificationResults(InferenceData):
                     self.batch_posteriors[n][v] = it
         return self.batch_posteriors
 
-    def hide_non_posteriors(self):
+    def hide_non_posteriors(self, **kwargs):
         """Drop posteriors not beloning to class result.
         
         Posteriors that do not belong the the label that is
@@ -187,7 +187,7 @@ class ClassificationResults(InferenceData):
         if not self.batch_posteriors:
             self.sort_posteriors_by_batch()
         if not self.class_results:
-            self.get_class_results()
+            self.get_class_results(**kwargs)
         keep_vars = list(self.batch_posteriors[self.class_results])
         all_vars = self.posterior.data_vars
         self.hidden_posterior = self.posterior.copy()
