@@ -390,3 +390,28 @@ class InferenceDataSet:
             for n, idata in self.data.items()
         }
         return results
+
+    def drop_data_items(self, key, store=True):
+        """Drop items from the data dictionary
+        
+        Specify which items to drop via the key. The
+        dropped items can be stored to a new dictionary.
+
+        Parameters
+        ----------
+        key: callable
+            Returns True or False when applied to an item of
+            the data dictionary. Items that return True are
+            dropped.
+        store: bool
+            Set to true to store the dropped items as a
+            dictionary.
+        """
+        drop = {}
+        for n, it in self.data.items():
+            if key(it):
+                drop[n] = it
+        for n in drop:
+            self.data.pop(n)
+        if store:
+            self.dropped = drop
