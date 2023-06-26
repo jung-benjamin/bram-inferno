@@ -3,7 +3,10 @@
 
 import json
 
-import pymc3 as pm
+try:
+    import pymc3 as pm
+except ImportError:
+    import pymc as pm
 
 from newbie import kernels, wastebin
 

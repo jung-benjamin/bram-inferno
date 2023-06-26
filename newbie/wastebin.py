@@ -7,15 +7,23 @@ operating histories from nuclear waste compositions.
 @author jung-benjamin
 """
 
-import os
-import re
 import json
 import logging
+import os
+import re
 from pathlib import Path, PurePath
 
 import numpy as np
-import pymc3 as pm
-import theano.tensor as tt
+import pandas as pd
+
+try:
+    import pymc3 as pm
+except ImportError:
+    import pymc as pm
+try:
+    import theano.tensor as tt
+except ImportError:
+    import pytensor.tensor as tt
 
 from itertools import chain
 
@@ -138,10 +146,16 @@ class WasteBin():
         else:
             sigma = [self.evidence[i] * uncertainty[i] for i in ids]
         models = [self.models[i].predict(self.priors) for i in ids]
-        distrib = [
-            pm.Normal(i, mu=m, sd=s, observed=o)
-            for i, m, s, o in zip(ids, models, sigma, evidence)
-        ]
+        try:
+            distrib = [
+                pm.Normal(i, mu=m, sd=s, observed=o)
+                for i, m, s, o in zip(ids, models, sigma, evidence)
+            ]
+        except TypeError:
+            distrib = [
+                pm.Normal(i, mu=m, sigma=s, observed=pd.Series(o))
+                for i, m, s, o in zip(ids, models, sigma, evidence)
+            ]
         self.probabilities = distrib
         return distrib
 
@@ -166,8 +180,10 @@ class WasteBin():
 
             def joint(**kwargs):
                 return np.product([n for i, n in kwargs.items()])
-
+        try:
             l = pm.DensityDist('L', joint, observed=dict(zip(ids, dists)))
+        except TypeError:
+            l = pm.DensityDist('L', logp=joint, *dists)
         return l
 
     def inference(

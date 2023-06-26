@@ -17,9 +17,13 @@ import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
-import theano
-import theano.tensor as tt
 
+try:
+    import theano.tensor as tt
+    from theano import scan
+except ImportError:
+    import pytensor.tensor as tt
+    from pytensor import scan
 
 OLDKEYS = ['Params', 'LAMBDA', 'alpha_', 'x_train', 'y_train',
            'y_trafo', 'x_trafo',]
@@ -74,7 +78,7 @@ class Surrogate(ABC):
             Posterior predictive for each point in x.
         """
         xtt = tt.cast(x, 'float64')
-        posterior, updates = theano.scan(self.predict, xtt)
+        posterior, updates = scan(self.predict, xtt)
         if eval:
             return posterior.eval()
         return posterior
@@ -257,7 +261,7 @@ class ASQEKernelPredictor(Surrogate):
             Posterior predictive for each point in x.
         """
         xtt = tt.cast(x, 'float64')
-        posterior, updates = theano.scan(self.predict, xtt)
+        posterior, updates = scan(self.predict, xtt)
         if eval:
             return posterior.eval()
         return posterior
@@ -365,7 +369,7 @@ class PredictorQuotient():
             Posterior predictive for each point in x.
         """
         xtt = tt.cast(x, 'float64')
-        posterior, updates = theano.scan(self.predict, xtt)
+        posterior, updates = scan(self.predict, xtt)
         if eval:
             return posterior.eval()
         return posterior
