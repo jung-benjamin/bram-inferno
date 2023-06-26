@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-
 from newbie import metrics
 from newbie.inferencedata import InferenceDataSet
 from newbie.metrics import (MAPEMeasure, MetricDataSet, RMSEMeasure,
@@ -52,7 +51,7 @@ def truth_dataset(rootdir):
     """Load the true parameter values to an xarray dataset."""
     df = pd.read_csv(Path(rootdir, 'test-data', 'synthetic_truth.csv'),
                      index_col=0)
-    return xr.Dataset(df).rename_dims({'dim_0': 'ID'})
+    return xr.Dataset(df).rename({'dim_0': 'ID'})
 
 
 @pytest.fixture
