@@ -176,7 +176,7 @@ class ClassificationResults(InferenceData):
                     self.batch_posteriors[n][v] = it
         return self.batch_posteriors
 
-    def hide_non_posteriors(self):
+    def hide_non_posteriors(self, **kwargs):
         """Drop posteriors not beloning to class result.
         
         Posteriors that do not belong the the label that is
@@ -187,7 +187,7 @@ class ClassificationResults(InferenceData):
         if not self.batch_posteriors:
             self.sort_posteriors_by_batch()
         if not self.class_results:
-            self.get_class_results()
+            self.get_class_results(**kwargs)
         keep_vars = list(self.batch_posteriors[self.class_results])
         all_vars = self.posterior.data_vars
         self.hidden_posterior = self.posterior.copy()
@@ -390,3 +390,28 @@ class InferenceDataSet:
             for n, idata in self.data.items()
         }
         return results
+
+    def drop_data_items(self, key, store=True):
+        """Drop items from the data dictionary
+        
+        Specify which items to drop via the key. The
+        dropped items can be stored to a new dictionary.
+
+        Parameters
+        ----------
+        key: callable
+            Returns True or False when applied to an item of
+            the data dictionary. Items that return True are
+            dropped.
+        store: bool
+            Set to true to store the dropped items as a
+            dictionary.
+        """
+        drop = {}
+        for n, it in self.data.items():
+            if key(it):
+                drop[n] = it
+        for n in drop:
+            self.data.pop(n)
+        if store:
+            self.dropped = drop
