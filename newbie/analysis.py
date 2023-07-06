@@ -106,7 +106,7 @@ class ConfusionAnalyzer:
                 msg = 'Inference data has no ids.'
                 self.idata = dict(zip(range(len(idata)), idata))
         elif isinstance(idata, dict):
-            self.idata = self.idata
+            self.idata = idata
         else:
             raise Exception(
                 'Inference data must be `list`, `tuple` or `dict`.')
