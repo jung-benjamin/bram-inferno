@@ -238,6 +238,31 @@ class MetricDataSet:
             self.truth = xr.Dataset(truth)
         self.truth = truth
 
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
     def get_measure(self, measure_type):
         """Wrapper for AccuracyMeasureFactory.create_measure"""
         return AccuracyMeasureFactory.create_measure(measure_type=measure_type)
@@ -296,23 +321,30 @@ class MetricDataSet:
             for each parameter in each element of the dataset.
         """
         hdi = self.calc_hdi(*args, **kwargs)
-        prior_span = {n: it['upper'] - it['lower'] for n, it in priors.items()}
-        if all(
-                isinstance(d, ClassificationResults)
-                for d in self.data.data.values()):
-            prior_lens = {}
-            for n, idata in self.data.data.items():
-                p_l = {
-                    k[:-1]: prior_span[k]
-                    for k in list(idata.batch_posteriors[idata.class_results])
-                }
-                prior_lens[n] = p_l
-            prior_lens = xr.Dataset.from_dataframe(
-                pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
+        if isinstance(priors, xr.Dataset):
+            prior_lens = priors.sel(bound='upper') - priors.sel(bound='lower')
         else:
-            prior_lens = {n: prior_span for n in self.data.data}
-            prior_lens = xr.Dataset.from_dataframe(
-                pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
+            prior_span = {
+                n: it['upper'] - it['lower']
+                for n, it in priors.items()
+            }
+            if all(
+                    isinstance(d, ClassificationResults)
+                    for d in self.data.data.values()):
+                prior_lens = {}
+                for n, idata in self.data.data.items():
+                    p_l = {
+                        k[:-1]: prior_span[k]
+                        for k in list(idata.batch_posteriors[
+                            idata.class_results])
+                    }
+                    prior_lens[n] = p_l
+                prior_lens = xr.Dataset.from_dataframe(
+                    pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
+            else:
+                prior_lens = {n: prior_span for n in self.data.data}
+                prior_lens = xr.Dataset.from_dataframe(
+                    pd.DataFrame(prior_lens).T).rename({'index': 'ID'})
         hdi_span = hdi.sel(hdi='higher') - hdi.sel(hdi='lower')
         relative_span = hdi_span / prior_lens
         return relative_span
