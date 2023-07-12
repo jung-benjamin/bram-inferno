@@ -264,9 +264,13 @@ class InferenceDataSet:
             ]
         else:
             idata = [InferenceData.from_json(f) for f in file_paths]
-        if fmt:
+        if callable(fmt):
+            ids = [fmt(Path(f).stem) for f in file_paths]
+        elif fmt:
             cls.set_name_format(fmt)
-        ids = [cls.key_from_filename(Path(f).stem) for f in file_paths]
+            ids = [cls.key_from_filename(Path(f).stem) for f in file_paths]
+        else:
+            ids = [cls.key_from_filename(Path(f).stem) for f in file_paths]
         return cls(dict(zip(ids, idata)))
 
     @classmethod
