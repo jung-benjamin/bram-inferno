@@ -238,6 +238,31 @@ class MetricDataSet:
             self.truth = xr.Dataset(truth)
         self.truth = truth
 
+    @classmethod
+    def config_logger(cls,
+                      loglevel='INFO',
+                      logpath=None,
+                      formatstr='%(levelname)s:%(name)s:%(message)s'):
+        """Configure the logger."""
+        log = logging.getLogger(cls.__name__)
+        log.setLevel(getattr(logging, loglevel.upper()))
+        log.handlers.clear()
+        fmt = logging.Formatter(formatstr)
+        sh = logging.StreamHandler()
+        sh.setLevel(getattr(logging, loglevel.upper()))
+        sh.setFormatter(fmt)
+        log.addHandler(sh)
+        if logpath:
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(getattr(logging, loglevel.upper()))
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+
+    @property
+    def logger(self):
+        """Get logger."""
+        return logging.getLogger(self.__class__.__name__)
+
     def get_measure(self, measure_type):
         """Wrapper for AccuracyMeasureFactory.create_measure"""
         return AccuracyMeasureFactory.create_measure(measure_type=measure_type)
