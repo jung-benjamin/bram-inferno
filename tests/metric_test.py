@@ -8,33 +8,11 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+
 from newbie import metrics
 from newbie.inferencedata import InferenceDataSet
 from newbie.metrics import (MAPEMeasure, MetricDataSet, RMSEMeasure,
                             RSquaredMeasure)
-
-
-@pytest.fixture
-def inference_data(rootdir):
-    """Load inference data from json file."""
-    data = az.from_json(Path(rootdir, 'test-data', 'inference_data.json'))
-    return data
-
-
-@pytest.fixture
-def inference_data_2(rootdir):
-    """Load second inference data from a json file."""
-    data = az.from_json(rootdir / 'test-data' / 'inference_data_2.json')
-    return data
-
-
-@pytest.fixture
-def inference_dataset(inference_data, inference_data_2):
-    """Create an InferenceDataSet for testing"""
-    return InferenceDataSet({
-        'data': inference_data,
-        'data_2': inference_data_2
-    })
 
 
 @pytest.fixture
