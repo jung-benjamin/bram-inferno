@@ -73,6 +73,16 @@ class InferenceData(az.InferenceData):
             data_vars=data_vars, **kwargs)
         return self.estimator_values
 
+    def normalize_posterior_vars(self, data_vars):
+        """Normalize a set of variables to sum to 1.
+        
+        Updates the posterior group of the InferenceData.
+        """
+        pos = self.posterior
+        norm = sum([pos[n] for n in data_vars])
+        for v in data_vars:
+            pos[v] = pos[v] / norm
+
 
 class ClassificationResults(InferenceData):
     """Results of Bayesian Inference for Reactor Type Classification"""

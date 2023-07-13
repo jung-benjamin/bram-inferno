@@ -45,6 +45,14 @@ def test_inference_data_estimator(inference_data):
     assert idata.calculate_estimator('mean')
 
 
+def test_inference_data_normalize_posterior_vars(inference_data):
+    """Test for the InferenceData.dormalize_posterior_vars method"""
+    idata = inferencedata.InferenceData.from_inferencedata(inference_data)
+    idata.normalize_posterior_vars(['alphaA', 'alphaB'])
+    s = sum([idata.posterior[a] for a in ['alphaA', 'alphaB']])
+    assert pytest.approx(s, np.finfo(float).eps) == 1
+
+
 def test_class_results_from_json(rootdir):
     """Test for the ClassificationResults.from_json classmethod."""
     cr = inferencedata.ClassificationResults.from_json(
