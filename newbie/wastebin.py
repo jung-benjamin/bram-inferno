@@ -153,7 +153,7 @@ class WasteBin():
             ]
         except TypeError:
             distrib = [
-                pm.Normal(i, mu=m, sigma=s, observed=pd.Series(o))
+                pm.Normal(i, mu=m, sigma=s, observed=o)
                 for i, m, s, o in zip(ids, models, sigma, evidence)
             ]
         self.probabilities = distrib
@@ -180,10 +180,12 @@ class WasteBin():
 
             def joint(**kwargs):
                 return np.product([n for i, n in kwargs.items()])
+
         try:
             l = pm.DensityDist('L', joint, observed=dict(zip(ids, dists)))
         except TypeError:
-            l = pm.DensityDist('L', logp=joint, *dists)
+
+            l = dists
         return l
 
     def inference(
