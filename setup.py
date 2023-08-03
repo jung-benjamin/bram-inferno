@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'newbie',
-    version = '0.6.5',
+    version = '0.7.1',
     author = 'Benjamin Jung',
     license = 'BSD-3-Clause',
     packages = find_packages(include = ['newbie', 'newbie.*']),
