@@ -12,7 +12,7 @@ import seaborn as sns
 from .estimators import EstimatorFactory
 from .inferencedata import ClassificationResults
 
-PARAM_REGEX = re.compile('([a-zA-Z])([a-z]+)(\d|[A-Z]?)')
+PARAM_REGEX = re.compile('([a-zA-Z])([a-z]+)_?(\d|[A-Z]?)')
 
 
 class DistancePlot:
@@ -20,7 +20,7 @@ class DistancePlot:
     def __init__(self, distances):
         """Instantiate class with xarray dataset of distances."""
         self.distances = distances
-    
+
     def get_subplots(self, metrics='all', **kwargs):
         """Create figure and axes with subplots."""
         if metrics == 'all':
@@ -32,14 +32,14 @@ class DistancePlot:
         rows = len(self.distances.data_vars)
         fig, ax = plt.subplots(nrows=rows, ncols=cols, **kwargs)
         return fig, ax
-    
+
     def plot_iterator(self, axes):
         """Iterate over the plot axes and the data."""
         for var, row in zip(self.distances.data_vars, axes):
             data = self.distances[var].to_pandas()
             for m, col in zip(data.columns, row):
                 yield data, m, col
-    
+
     def plot_distances(self):
         """Plot distances between estimators and true values."""
         raise NotImplementedError(
