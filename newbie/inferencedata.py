@@ -206,7 +206,7 @@ class ClassificationResults(InferenceData):
         self.posterior = self.posterior.rename(
             dict(
                 zip(keep_vars,
-                    [k.strip(self.class_results) for k in keep_vars])))
+                    [k.strip(f'_{self.class_results}') for k in keep_vars])))
 
 
 class InferenceDataSet:
