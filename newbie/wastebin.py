@@ -439,9 +439,14 @@ class WasteBinMixture(WasteBin):
         def prior_generator(par, lim, fall, dist='Uniform'):
             for param in par:
                 if param in lim:
-                    logging.debug(
-                        f'Generating {param} prior from {lim[param]}.')
-                    yield getattr(pm, dist)(param, **lim[param])
+                    if isinstance(lim[param], float) or isinstance(lim[param], int):
+                        logging.debug(
+                            f'Generating {param} prior from const:{lim[param]}.')
+                        yield getattr(pm, "Deterministic")(param,tt.cast(lim[param],'float64'))
+                    else:
+                        logging.debug(
+                            f'Generating {param} prior from {lim[param]}.')
+                        yield getattr(pm, dist)(param, **lim[param])
                 else:
                     logging.debug(f'Using {fall[param]} for {param}.')
                     yield fall[param]
