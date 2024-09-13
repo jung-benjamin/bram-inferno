@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-
 """Gaussian Process Kernels in Theano
 
 Contains kernels for surrogate modelling of isotopic ratios in
@@ -25,10 +24,24 @@ except ImportError:
     import pytensor.tensor as tt
     from pytensor import scan
 
-OLDKEYS = ['Params', 'LAMBDA', 'alpha_', 'x_train', 'y_train',
-           'y_trafo', 'x_trafo',]
-KEYS = ['parameters', 'lambda_inv', 'alpha', 'xtrain', 'ytrain',
-        'ytrafo', 'xtrafo',]
+OLDKEYS = [
+    'Params',
+    'LAMBDA',
+    'alpha_',
+    'x_train',
+    'y_train',
+    'y_trafo',
+    'x_trafo',
+]
+KEYS = [
+    'parameters',
+    'lambda_inv',
+    'alpha',
+    'xtrain',
+    'ytrain',
+    'ytrafo',
+    'xtrafo',
+]
 KEYMAP = dict(zip(OLDKEYS, KEYS))
 
 
@@ -37,10 +50,10 @@ class Surrogate(ABC):
 
     @classmethod
     @abstractmethod
-    def from_file(self,):
+    def from_file(self, ):
         """Load the model from a file"""
         pass
-    
+
     @property
     def n_args(self):
         """The number of arguments accepted by the model."""
@@ -128,7 +141,7 @@ class LinearCombination(Combination):
         """
         num = len(self.surrogates)
         logging.debug(f'Num. surrogates in linear combination: {num}.')
-        chunk_len = [x.n_args + 1 for x in self.surrogates] ## + 1 for mixing
+        chunk_len = [x.n_args + 1 for x in self.surrogates]  ## + 1 for mixing
         logging.debug(f'Num. arguments of each surrogate: {chunk_len}.')
         upper = list(np.cumsum(chunk_len))
         lower = [0] + upper[:-1]
@@ -163,8 +176,8 @@ class ASQEKernelPredictor(Surrogate):
     faster predictions.
     """
 
-    def __init__(self, parameters, xtrain, ytrain,
-                 lambda_inv, alpha, xtrafo, ytrafo):
+    def __init__(self, parameters, xtrain, ytrain, lambda_inv, alpha, xtrafo,
+                 ytrafo):
         """Cast the data to theano objects"""
         self.parameters = tt.cast(parameters, 'float64')
         self.constant = self.parameters[0]
@@ -182,7 +195,7 @@ class ASQEKernelPredictor(Surrogate):
             self.ytrafo = tt.cast(ytrafo[1], 'float64')
         else:
             self.ytrafo = tt.cast(ytrafo, 'float64')
-        self.n_args=len(parameters) - 2
+        self.n_args = len(parameters) - 2
 
     @classmethod
     def from_file(cls, filepath):
@@ -213,7 +226,6 @@ class ASQEKernelPredictor(Surrogate):
                    arg_dict['ytrain'], arg_dict['lambda_inv'],
                    arg_dict['alpha'], arg_dict['xtrafo'], arg_dict['ytrafo'])
 
-
     def transform_x(self, x):
         """Transform the x data
 
@@ -232,9 +244,11 @@ class ASQEKernelPredictor(Surrogate):
         """Calculate the posterior predictive for x"""
         xtt = self.transform_x(tt.cast(x, 'float64'))
         distance = self.transform_x(self.xtrain) - xtt
-        distance_sq = tt.dot(tt.dot(distance, self.lambda_inv**2), distance.T).diagonal()
+        distance_sq = tt.dot(tt.dot(distance, self.lambda_inv**2),
+                             distance.T).diagonal()
         ktrans = self.constant**2 * tt.exp(-distance_sq / 2)
-        noise_diag = tt.cast(np.ones(self.xtrain.shape.eval()[0]), 'float64') * self.noise **2
+        noise_diag = tt.cast(np.ones(self.xtrain.shape.eval()[0]),
+                             'float64') * self.noise**2
         ktrans += noise_diag
         y = self.untransform_y(tt.dot(ktrans, self.alpha))
         return tt.max([y, 0])
@@ -302,8 +316,8 @@ class PredictorSum2():
 
     def predict(self, p):
         """Calculate the posterior predictive of the sum"""
-        return (p[0] * self.k1.predict([p[1], p[2]])
-                + p[3] * self.k2.predict([p[4], p[5]]))
+        return (p[0] * self.k1.predict([p[1], p[2]]) +
+                p[3] * self.k2.predict([p[4], p[5]]))
 
 
 class PredictorQuotient():

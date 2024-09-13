@@ -1,6 +1,1 @@
-from . import wastebin
-from . import kernels
-from . import estimators
-from . import evidence
-from . import metrics
-from . import analysis
+from . import analysis, estimators, evidence, kernels, metrics, wastebin

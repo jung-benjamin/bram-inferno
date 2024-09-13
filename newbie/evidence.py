@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-
 """Handle measured evidence for inference
 
 A class that handles the measured evidence (isotopic ratios) for
@@ -8,9 +7,9 @@ the inference.
 @author: jung-benjamin
 """
 
+import json
 import os
 import re
-import json
 
 import pandas as pd
 
@@ -72,8 +71,8 @@ class Evidence():
         evidence = {}
         for r, i, j in self._iter_ratiolist(ratiolist):
             if self.batches:
-                evidence[r] = (self.isotopes.loc[i, batch]
-                               / self.isotopes.loc[j, batch])
+                evidence[r] = (self.isotopes.loc[i, batch] /
+                               self.isotopes.loc[j, batch])
             else:
                 evidence[r] = self.isotopes[i] / self.isotopes[j]
         return evidence
@@ -125,7 +124,7 @@ class SyntheticEvidence(Evidence):
 
     def true_parameters(self, batch):
         """Select parameters of a batch of synthetic evidence."""
-        return self.parameters.loc[batch,:].dropna()
+        return self.parameters.loc[batch, :].dropna()
 
 
 class Mixture(Evidence):
@@ -214,9 +213,12 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
     analysis.
     """
 
-    def __init__(
-        self, data, parameters, mixing_ids, mixing_ratios, rationame=False
-    ):
+    def __init__(self,
+                 data,
+                 parameters,
+                 mixing_ids,
+                 mixing_ratios,
+                 rationame=False):
         """Create an instance of the class
 
         Parameters
@@ -236,10 +238,11 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             Ratios for mixing the batches respectively.
         """
         super().__init__(data, mixing_ids, mixing_ratios)
-        self.parameters = pd.concat(
-            [self._mix_parameters(parameters, i, r, rationame) for i, r in zip(mixing_ids, mixing_ratios)],
-            axis=1
-        ).T
+        self.parameters = pd.concat([
+            self._mix_parameters(parameters, i, r, rationame)
+            for i, r in zip(mixing_ids, mixing_ratios)
+        ],
+                                    axis=1).T
         self._get_mixtures(mixing_ids, mixing_ratios)
 
     @classmethod
@@ -279,9 +282,11 @@ class SyntheticMixture(Mixture, SyntheticEvidence):
             mixtures[key] = mixing_ids
         self.mixtures = mixtures
 
-    def _mix_parameters(
-        self, parameters, mixing_ids, mixing_ratios, rationame=False
-    ):
+    def _mix_parameters(self,
+                        parameters,
+                        mixing_ids,
+                        mixing_ratios,
+                        rationame=False):
         """Mix parameters of two or more isotopic compositions
 
         Parameters
