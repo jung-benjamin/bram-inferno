@@ -196,6 +196,7 @@ class WasteBin():
         const=None,
         plot=True,
         load=None,
+        debug=False,
         **kwargs,
     ):
         """Run bayesian inference with pymc uniform priors
@@ -243,7 +244,7 @@ class WasteBin():
             Trace of the sampling algorithm.
         """
 
-        with pm.Model():
+        with pm.Model() as model:
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
             self.load_models(ids)
@@ -276,6 +277,8 @@ class WasteBin():
                 ## Silence the deprecation warning
                 if 'return_inferencedata' not in kwargs:
                     kwargs['return_inferencedata'] = False
+                if debug:
+                    print(model.debug())
                 trace = pm.sample(**kwargs)
             else:
                 trace = pm.load_trace(load)
