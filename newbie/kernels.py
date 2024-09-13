@@ -237,7 +237,7 @@ class ASQEKernelPredictor(Surrogate):
         noise_diag = tt.cast(np.ones(self.xtrain.shape.eval()[0]), 'float64') * self.noise **2
         ktrans += noise_diag
         y = self.untransform_y(tt.dot(ktrans, self.alpha))
-        return y
+        return tt.max([y, 0])
 
     def predict_many(self, x, eval=False):
         """Calculate the posterior predictive for a vector x
