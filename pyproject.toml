@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "newbie"
+version = "0.8.0"
+authors = [{ name = "Benjamin Jung" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+description = "A package for Bayesian inference with nuclear waste."
+requires-python = ">=3.10"
+dependencies = ["pymc>=5", "numpy", "pandas", "pytensor"]
+
+[project.optional-dependencies]
+npro = ["numpyro"]
+
+[tool.setuptools.packages.find]
+include = ["newbie", "newbie.*"]
+namespaces = false
