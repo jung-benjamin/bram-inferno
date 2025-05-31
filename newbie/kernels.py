@@ -69,6 +69,50 @@ class Surrogate(ABC):
         """Calculate model predictions for a point."""
         pass
 
+    def __add__(self, other):
+        """Add two surrogate models together
+
+        Returns a new surrogate model that is the sum of the
+        two models.
+        """
+        if other == 0 or other == 0.0:
+            return self
+        else:
+            return Sum([self, other])
+
+    def __radd__(self, other):
+        """Add two surrogate models together
+
+        Returns a new surrogate model that is the sum of the
+        two models.
+        """
+        if other == 0 or other == 0.0:
+            return self
+        else:
+            return Sum([other, self])
+
+    def __mul__(self, other):
+        """Multiply two surrogate models together
+
+        Returns a new surrogate model that is the product of the
+        two models.
+        """
+        if other == 1 or other == 1.0:
+            return self
+        else:
+            return Product([self, other])
+
+    def __rmul__(self, other):
+        """Multiply two surrogate models together
+
+        Returns a new surrogate model that is the product of the
+        two models.
+        """
+        if other == 1 or other == 1.0:
+            return self
+        else:
+            return Product([other, self])
+
     def predict_many(self, x, eval=False):
         """Calculate the posterior predictive for a vector x
 
@@ -167,6 +211,65 @@ class Quotient(Combination):
         ignored.
         """
         return self.surrogates[0].predict(x1) / self.surrogates[1].predict(x1)
+
+
+class Constant(Surrogate):
+    """A constant surrogate model
+
+    This model always returns the same value, which is
+    set during initialization.
+    """
+
+    def __init__(self, value):
+        """Set the constant value"""
+        self.value = tt.cast(value, 'float64')
+
+    def predict(self, x):
+        """Return the constant value for any input"""
+        return self.value
+
+    @classmethod
+    def from_file(cls, filepath):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            Path to the file containing model data.
+        """
+        if str(filepath).endswith('.json'):
+            with open(filepath, 'r') as f:
+                d = json.load(f)
+        elif str(filepath).endswith('.npy'):
+            d = np.load(filepath, allow_pickle=True).item()
+        else:
+            msg = 'File format is not supported by the model.'
+            print(msg)
+        return cls(d['Constant'])
+
+
+class Sum(Combination):
+    """Calculate the sum of two surrogate models
+
+    The first entry in the surrogates list is added to the
+    second entry. Any further entries are ignored.
+    """
+
+    def predict(self, x):
+        """Calculate the posterior predictive"""
+        return self.surrogates[0].predict(x) + self.surrogates[1].predict(x)
+
+
+class Product(Combination):
+    """Calculate the product of two surrogate models
+
+    The first entry in the surrogates list is multiplied with
+    the second entry. Any further entries are ignored.
+    """
+
+    def predict(self, x):
+        """Calculate the posterior predictive"""
+        return (self.surrogates[0].predict(x) * self.surrogates[1].predict(x))
 
 
 class ASQEKernelPredictor(Surrogate):
