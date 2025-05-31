@@ -104,9 +104,9 @@ class WasteBin():
         else:
             for i in ids:
                 iso1, iso2 = i.split('/')
-                self.models[i] = kernels.PredictorQuotient.from_file(
-                    self.filepaths[iso1], self.model_type,
-                    self.filepaths[iso2], self.model_type)
+                self.models[i] = kernels.Quotient.from_file(
+                    (self.filepaths[iso1], self.model_type),
+                    (self.filepaths[iso2], self.model_type))
 
     def _make_priors(self, p, limits, fallback):
         """Turn parameter limits into prior distribution
@@ -197,6 +197,7 @@ class WasteBin():
         plot=True,
         load=None,
         debug=False,
+        bias=None,
         **kwargs,
     ):
         """Run bayesian inference with pymc uniform priors
@@ -233,6 +234,10 @@ class WasteBin():
             Path to a directory, where a trace was stored by a previous
             sampling process. If the path is specified, the model is
             loaded from the trace and the sampler is not run.
+        bias: dict(float), optional (default is None)
+            Dictionary of biases to be applied for correcting the predictions
+            of the surrogate models. The keys are the model identifiers
+            (usually nuclides).
         **kwargs
             Keyword arguments for the pymc.sample method.
 
@@ -248,6 +253,16 @@ class WasteBin():
             ## Needs to be called inside the context manager
             ## Otherwise models don't work
             self.load_models(ids)
+            if bias is not None:
+                for n, it in self.models.items():
+                    if self.model_ratios:
+                        raise NotImplementedError(
+                            "Bias correction not implemented for ratios.")
+                    i1, i2 = n.split('/')
+                    if i1 in bias:
+                        it.surrogates[0] *= kernels.Constant(1 - bias[i1])
+                    if i2 in bias:
+                        it.surrogates[1] *= kernels.Constant(1 - bias[i2])
             labels = self.labels
             logging.debug(f'labels: {self.labels}')
             if isinstance(limits, (str, Path, PurePath)):
