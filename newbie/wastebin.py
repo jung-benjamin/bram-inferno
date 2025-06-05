@@ -392,7 +392,11 @@ class WasteBinMixture(WasteBin):
             fp = {}
             for i in ids:
                 if isinstance(modelfile, dict):
-                    fp[i] = os.path.join(prefix, *paths[b][i])
+                    try:
+                        fp[i] = os.path.join(prefix, *paths[b][i])
+                    except KeyError:
+                        msg = f'No model for {i} in batch {b}.'
+                        raise KeyError(msg)
                 else:
                     fp[i] = os.path.join(prefix, *paths[i])
             filepaths[b] = fp
