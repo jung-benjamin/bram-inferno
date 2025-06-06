@@ -272,6 +272,166 @@ class Product(Combination):
         return (self.surrogates[0].predict(x) * self.surrogates[1].predict(x))
 
 
+class AnisotropicSquaredExponentialKernel:
+    """Anisotropic squared exponential kernel
+
+    This kernel is used for Gaussian processes and is defined
+    by a set of hyperparameters.
+    """
+
+    def __init__(self, parameters, xtrain, ytrain, lambda_inv, alpha, xtrafo,
+                 ytrafo):
+        """Cast the data to theano objects"""
+        self.parameters = tt.cast(parameters, 'float64')
+        self.constant = self.parameters[0]
+        self.noise = self.parameters[-1]
+        self.lengthscales = self.parameters[1:-1]
+        self.xtrain = tt.cast(xtrain, 'float64')
+        self.ytrain = tt.cast(ytrain, 'float64')
+        self.lambda_inv = tt.cast(lambda_inv, 'float64')
+        self.alpha = tt.cast(alpha, 'float64')
+        if isinstance(xtrafo[0], str):
+            self.xtrafo = tt.cast(xtrafo[1], 'float64')
+        else:
+            self.xtrafo = tt.cast(xtrafo, 'float64')
+        if isinstance(ytrafo[0], str):
+            self.ytrafo = tt.cast(ytrafo[1], 'float64')
+        else:
+            self.ytrafo = tt.cast(ytrafo, 'float64')
+        self.n_args = len(parameters) - 2
+
+    @classmethod
+    def from_dict(cls, d):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        d : dict
+            Dictionary containing model data. The keys should
+            match the keys defined in KEYS or OLDKEYS.
+        Returns
+        -------
+        model : AnisotropicSquaredExponentialKernel
+            Instance of the class.
+        """
+        arg_dict = {}
+        for n, it in d.items():
+            if n in OLDKEYS:
+                arg_dict[KEYMAP[n]] = it
+            elif n in KEYS:
+                arg_dict[n] = it
+            else:
+                pass
+        return cls(arg_dict['parameters'], arg_dict['xtrain'],
+                   arg_dict['ytrain'], arg_dict['lambda_inv'],
+                   arg_dict['alpha'], arg_dict['xtrafo'], arg_dict['ytrafo'])
+
+    @classmethod
+    def from_file(cls, filepath):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            Path to the file containing model data.
+
+        Returns:
+        -------
+        model : AnisotropicSquaredExponentialKernel
+            Instance of the class.
+        """
+        if str(filepath).endswith('.json'):
+            with open(filepath, 'r') as f:
+                d = json.load(f)
+        elif str(filepath).endswith('.npy'):
+            d = np.load(filepath, allow_pickle=True).item()
+        else:
+            msg = 'File format is not supported by the model.'
+            print(msg)
+        return cls.from_dict(d)
+
+    def transform_x(self, x):
+        """Transform the x data
+
+        The xtrafo is the maximum of the training data.
+        """
+        return x / self.xtrafo
+
+    def untransform_y(self, y):
+        """Untransform the y predictions
+
+        The ytrafo are the mean and std of a normal distribution.
+        """
+        return y * self.ytrafo[1] + self.ytrafo[0]
+
+    def __call__(self, x):
+        """Calculate the posterior predictive for x"""
+        xtt = self.transform_x(tt.cast(x, 'float64'))
+        distance = self.transform_x(self.xtrain) - xtt
+        distance_sq = tt.dot(tt.dot(distance, self.lambda_inv**2),
+                             distance.T).diagonal()
+        ktrans = self.constant**2 * tt.exp(-distance_sq / 2)
+        noise_diag = tt.cast(np.ones(self.xtrain.shape.eval()[0]),
+                             'float64') * self.noise**2
+        ktrans += noise_diag
+        y = self.untransform_y(tt.dot(ktrans, self.alpha))
+        return tt.max([y, 0])
+
+
+class GaussianProcessModel(Surrogate):
+    """Gaussian process-based surrogate model.
+    
+    Instances of this class are the building blocks for more
+    complex surrogate models.
+    """
+
+    _kernels = {
+        'AnisotropicSquaredExponential': AnisotropicSquaredExponentialKernel,
+    }
+
+    def __init__(self, kernel):
+        """Set the kernel for the model
+
+        Parameters
+        ----------
+        kernel : Kernel
+            The kernel to be used for the Gaussian process.
+        """
+        self.kernel = kernel
+
+    @classmethod
+    def from_file(cls, filepath):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            Path to the file containing model data.
+        """
+        if str(filepath).endswith('.json'):
+            with open(filepath, 'r') as f:
+                d = json.load(f)
+        elif str(filepath).endswith('.npy'):
+            d = np.load(filepath, allow_pickle=True).item()
+        else:
+            msg = 'File format is not supported by the model.'
+            print(msg)
+        kernel_type = d.get('kernel')
+        if kernel_type is None:
+            raise ValueError('Kernel type not specified in the file.')
+        kernel_class = cls._kernels.get(kernel_type)
+        if kernel_class is None:
+            raise ValueError(f'Unknown kernel type: {kernel_type}')
+        return cls(kernel_class.from_dict(d))
+
+    def predict(self, x):
+        """Calculate the posterior predictive for a point x
+
+        This method is intended to be overridden by subclasses.
+        """
+        return self.kernel(x)
+
+
 class ASQEKernelPredictor(Surrogate):
     """Posterior predictive of an ASQE kernel
 
@@ -282,6 +442,10 @@ class ASQEKernelPredictor(Surrogate):
     def __init__(self, parameters, xtrain, ytrain, lambda_inv, alpha, xtrafo,
                  ytrafo):
         """Cast the data to theano objects"""
+        warnings.warn(
+            'ASQEKernelPredictor is deprecated. Use AnisotropicSquaredExponentialKernel instead.',
+            DeprecationWarning,
+            stacklevel=2)
         self.parameters = tt.cast(parameters, 'float64')
         self.constant = self.parameters[0]
         self.noise = self.parameters[-1]
@@ -355,33 +519,6 @@ class ASQEKernelPredictor(Surrogate):
         ktrans += noise_diag
         y = self.untransform_y(tt.dot(ktrans, self.alpha))
         return tt.max([y, 0])
-
-    def predict_many(self, x, eval=False):
-        """Calculate the posterior predictive for a vector x
-
-        Uses the theano.scan method for faster computation of
-        the loop.
-
-        Parameters
-        ----------
-        x : list of float
-            Values for which the posterior predictive is to be
-            evaluated.
-        eval : bool, optional (default is False)
-            If True, the eval() method of the theano object is
-            called before returning the predictions.
-            This significantly increases the runtime.
-
-        Returns
-        -------
-        posterior
-            Posterior predictive for each point in x.
-        """
-        xtt = tt.cast(x, 'float64')
-        posterior, updates = scan(self.predict, xtt)
-        if eval:
-            return posterior.eval()
-        return posterior
 
 
 class PredictorSum2():
