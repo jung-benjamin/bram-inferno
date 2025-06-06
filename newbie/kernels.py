@@ -13,7 +13,9 @@ bayesian inference with pymc.
 
 import json
 import logging
+import warnings
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import numpy as np
 
@@ -77,8 +79,12 @@ class Surrogate(ABC):
         """
         if other == 0 or other == 0.0:
             return self
-        else:
+        elif isinstance(other, Surrogate):
             return Sum([self, other])
+        elif isinstance(other, tt.variable.TensorVariable):
+            return Sum([TensorVariable(other), self])
+        else:
+            return Sum([Constant(other), self])
 
     def __radd__(self, other):
         """Add two surrogate models together
@@ -88,8 +94,12 @@ class Surrogate(ABC):
         """
         if other == 0 or other == 0.0:
             return self
-        else:
+        elif isinstance(other, Surrogate):
             return Sum([other, self])
+        elif isinstance(other, tt.variable.TensorVariable):
+            return Sum([TensorVariable(other), self])
+        else:
+            return Sum([Constant(other), self])
 
     def __mul__(self, other):
         """Multiply two surrogate models together
@@ -99,8 +109,12 @@ class Surrogate(ABC):
         """
         if other == 1 or other == 1.0:
             return self
-        else:
+        elif isinstance(other, Surrogate):
             return Product([self, other])
+        elif isinstance(other, tt.variable.TensorVariable):
+            return Product([TensorVariable(other), self])
+        else:
+            return Product([Constant(other), self])
 
     def __rmul__(self, other):
         """Multiply two surrogate models together
@@ -110,8 +124,12 @@ class Surrogate(ABC):
         """
         if other == 1 or other == 1.0:
             return self
-        else:
+        elif isinstance(other, Surrogate):
             return Product([other, self])
+        elif isinstance(other, tt.variable.TensorVariable):
+            return Product([TensorVariable(other), self])
+        else:
+            return Product([Constant(other), self])
 
     def predict_many(self, x, eval=False):
         """Calculate the posterior predictive for a vector x
@@ -254,6 +272,36 @@ class Constant(Surrogate):
             msg = 'File format is not supported by the model.'
             print(msg)
         return cls(d['Constant'])
+
+
+class TensorVariable(Surrogate):
+    """A surrogate model that returns a tensor variable
+
+    This model is used to return a tensor variable as the
+    posterior predictive. It is intended for use with theano.
+    """
+
+    def __init__(self, tensor):
+        """Set the tensor variable"""
+        self.tensor = tensor
+
+    def predict(self, x):
+        """Return the tensor variable for any input"""
+        return self.tensor
+
+    @classmethod
+    def from_file(cls, filepath):
+        """Load the model from a file
+
+        Parameters
+        ----------
+        filepath : str, path-like
+            Path to the file containing model data.
+        """
+        raise NotImplementedError(
+            "TensorVariable.from_file is not implemented. "
+            "This class is intended for use with pre-defined tensors, "
+            "not for loading from files.")
 
 
 class Sum(Combination):
