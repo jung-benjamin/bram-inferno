@@ -170,7 +170,15 @@ class Combination(Surrogate):
         k : Combination
             Instance of the class.
         """
-        surrogates = [c.from_file(f) for (f, c) in args]
+        if not all(isinstance(a, (str, Path)) for a in args):
+            warnings.warn(
+                "Passing kernel classes to Combination.from_file is deprecated. "
+                "Please pass file paths only.",
+                DeprecationWarning,
+                stacklevel=2)
+            surrogates = [c.from_file(f) for (f, c) in args]
+        else:
+            surrogates = [GaussianProcessModel.from_file(f) for f in args]
         return cls(surrogates)
 
 
@@ -530,6 +538,10 @@ class PredictorSum2():
 
     def __init__(self, k1, k2):
         """Set the two kernel predictor instances"""
+        warnings.warn(
+            'PredictorSum2 is deprecated. Use LinearCombination instead.',
+            DeprecationWarning,
+            stacklevel=2)
         self.k1 = k1
         self.k2 = k2
 
@@ -573,6 +585,9 @@ class PredictorQuotient():
 
         k1 is the numerator and k2 is the denominator.
         """
+        warnings.warn('PredictorQuotient is deprecated. Use Quotient instead.',
+                      DeprecationWarning,
+                      stacklevel=2)
         self.k1 = k1
         self.k2 = k2
 
