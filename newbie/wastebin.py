@@ -28,6 +28,7 @@ except ImportError:
 from itertools import chain
 
 from . import kernels
+from .observables import GaussianProcessCollection
 
 ISOTOPE_REGEX = re.compile(r"""([A-Za-z]+)(-*)(\d+)(m|\*)*""")
 RATIO_REGEX = re.compile(
@@ -77,7 +78,7 @@ class WasteBin():
         self.filepaths = filepaths
         self.labels = labels
         self.evidence = evidence
-        self.models = {}
+        self.models = GaussianProcessCollection(ratio_models=model_ratios)
         self.model_ratios = model_ratios
 
     def load_filepaths(self, ids, modelfile, prefix):
@@ -88,6 +89,7 @@ class WasteBin():
         for i in ids:
             filepaths[i] = os.path.join(prefix, *paths[i])
         self.filepaths = filepaths
+        # self.models.load_filepaths(ids, modelfile, prefix)
 
     def load_models(self, ids):
         """Load the surrogate models from files
