@@ -37,6 +37,16 @@ RATIO_REGEX = re.compile(
     ([A-Za-z]+)(-*)(\d+)(m|\*)*""", re.X)
 
 
+def get_distribution(name, dist="Uniform", **kwargs):
+    """Create a prior from a dictionary of limits."""
+    return getattr(pm, dist)(name, **kwargs)
+
+
+def get_deterministic(name, value):
+    """Create a constant prior from a value."""
+    return pm.Deterministic(name, tt.cast(value, 'float64'))
+
+
 class WasteBin():
     """Bayesian inference with nuclear waste
 
@@ -118,9 +128,9 @@ class WasteBin():
         priors = []
         for param in p:
             if param in limits:
-                priors.append(pm.Uniform(param, **limits[param]))
+                priors.append(get_distribution(param, **limits[param]))
             else:
-                priors.append(tt.cast(fallback[param], 'float64'))
+                priors.append(get_deterministic(param, fallback[param]))
         self.priors = priors
         return priors
 
@@ -465,7 +475,7 @@ class WasteBinMixture(WasteBin):
         is set to True.
         """
 
-        def prior_generator(par, lim, fall, dist='Uniform'):
+        def prior_generator(par, lim, fall):
             for param in par:
                 if param in lim:
                     if isinstance(lim[param], float) or isinstance(
@@ -473,17 +483,14 @@ class WasteBinMixture(WasteBin):
                         logging.debug(
                             f'Generating {param} prior from const:{lim[param]}.'
                         )
-                        yield getattr(pm, "Deterministic")(param,
-                                                           tt.cast(
-                                                               lim[param],
-                                                               'float64'))
+                        yield get_deterministic(param, lim[param])
                     else:
                         logging.debug(
                             f'Generating {param} prior from {lim[param]}.')
-                        yield getattr(pm, dist)(param, **lim[param])
+                        yield get_distribution(param, **lim[param])
                 else:
                     logging.debug(f'Using {fall[param]} for {param}.')
-                    yield fall[param]
+                    yield get_deterministic(param, fall[param])
 
         priors = []
         n_batches = len(labels)
@@ -495,8 +502,13 @@ class WasteBinMixture(WasteBin):
                 priors.extend(list(prior_generator([a], {}, {a: 1.})))
             elif self.mixing_type == 'categorical':
                 if i == 0:
-                    d = {'cat': {'p': np.ones(n_batches) / n_batches}}
-                    base = list(prior_generator(['cat'], d, {}, 'Categorical'))
+                    d = {
+                        'cat': {
+                            'p': np.ones(n_batches) / n_batches,
+                            "dist": "Categorical"
+                        }
+                    }
+                    base = list(prior_generator(['cat'], d, {}))
                 ## Two options to map i to 0 or 1
                 ## Option 2 is probably faster
                 # f = tt.round(tt.exp(-(base[0] - i)**2))
