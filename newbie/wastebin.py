@@ -80,11 +80,13 @@ class WasteBin():
         self.models = {}
         self.model_ratios = model_ratios
 
-    def load_filepaths(self, ids, modelfile, prefix):
+    def load_filepaths(self, ids, modelfile, prefix=None):
         """Load the filepath dict from a json file"""
         filepaths = {}
         with open(modelfile, 'r') as f:
             paths = json.load(f)
+        if prefix is None:
+            prefix = str(PurePath(modelfile).parent)
         for i in ids:
             filepaths[i] = os.path.join(prefix, *paths[i])
         self.filepaths = filepaths
@@ -369,7 +371,7 @@ class WasteBinMixture(WasteBin):
         self.combination = getattr(kernels, combination)
         self.mixing_type = mixing_type
 
-    def load_filepaths(self, ids, modelfile, prefix):
+    def load_filepaths(self, ids, modelfile, prefix=None):
         """Load the filepath dict from a json file."""
         if not self.model_ratios:
             if all(map(RATIO_REGEX.fullmatch, ids)):
@@ -390,6 +392,11 @@ class WasteBinMixture(WasteBin):
                 paths = json.load(f)
         for b in self.batches:
             fp = {}
+            if prefix is None:
+                if isinstance(modelfile, dict):
+                    prefix = str(PurePath(modelfile[b]).parent)
+                else:
+                    prefix = str(PurePath(modelfile).parent)
             for i in ids:
                 if isinstance(modelfile, dict):
                     try:
