@@ -404,18 +404,20 @@ class WasteBinMixture(WasteBin):
             fp = {}
             if prefix is None:
                 if isinstance(modelfile, dict):
-                    prefix = str(PurePath(modelfile[b]).parent)
+                    base_dir = str(PurePath(modelfile[b]).parent)
                 else:
-                    prefix = str(PurePath(modelfile).parent)
+                    base_dir = str(PurePath(modelfile).parent)
+            else:
+                base_dir = prefix
             for i in ids:
                 if isinstance(modelfile, dict):
                     try:
-                        fp[i] = os.path.join(prefix, *paths[b][i])
+                        fp[i] = os.path.join(base_dir, *paths[b][i])
                     except KeyError:
                         msg = f'No model for {i} in batch {b}.'
                         raise KeyError(msg)
                 else:
-                    fp[i] = os.path.join(prefix, *paths[i])
+                    fp[i] = os.path.join(base_dir, *paths[i])
             filepaths[b] = fp
         self.filepaths = filepaths
 
